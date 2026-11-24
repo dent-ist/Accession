@@ -77,9 +77,6 @@ public sealed partial class SettingsViewModel : DialogViewModelBase
         ErrorMessage = "Enter a number from 1 to 16.")]
     public partial int CopyThreads { get; set; }
 
-    [ObservableProperty]
-    public partial bool CheckForUpdates { get; set; }
-
     /// <summary>Empty means the Documents folder.</summary>
     [ObservableProperty]
     public partial string DefaultExportFolder { get; set; } = string.Empty;
@@ -124,7 +121,6 @@ public sealed partial class SettingsViewModel : DialogViewModelBase
             s.DefaultExportFolder = DefaultExportFolder;
             s.SplitExportPerMedia = SplitExportPerMedia;
             s.CopyThreads = CopyThreads;
-            s.CheckForUpdates = CheckForUpdates;
         });
         Close(true);
     }
@@ -144,7 +140,6 @@ public sealed partial class SettingsViewModel : DialogViewModelBase
         DefaultExportFolder = settings.DefaultExportFolder;
         SplitExportPerMedia = settings.SplitExportPerMedia;
         CopyThreads = settings.CopyThreads;
-        CheckForUpdates = settings.CheckForUpdates;
     }
 }
 

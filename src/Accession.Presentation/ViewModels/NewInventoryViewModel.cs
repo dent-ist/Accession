@@ -54,12 +54,19 @@ public sealed partial class NewInventoryViewModel : DialogViewModelBase
     [ObservableProperty]
     public partial bool ShowDiscoveredMedia { get; set; } = true;
 
+    /// <summary>Media may also come from other folders and drives (USB drives, other shares), not only the root.</summary>
+    [ObservableProperty]
+    public partial bool AllowExternalMedia { get; set; }
+
     /// <summary>E.g. "12 subfolders found (candidate media)".</summary>
     [ObservableProperty]
     public partial string RootInfo { get; set; } = string.Empty;
 
     public CreateInventoryRequest BuildRequest() => new(
-        ClientName, ClientCode, MatterName, MatterCode, Description, MatterUrl, RootFolder, InventoryFileName.WithExtension(SavePath));
+        ClientName, ClientCode, MatterName, MatterCode, Description, MatterUrl, RootFolder, InventoryFileName.WithExtension(SavePath))
+    {
+        AllowExternalMedia = AllowExternalMedia,
+    };
 
     partial void OnClientNameChanged(string value) => Touch(InventoryFields.ClientName, pathsChanged: false);
 

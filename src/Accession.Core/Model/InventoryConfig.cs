@@ -6,8 +6,14 @@ public sealed class InventoryConfig
     public Guid InventoryGuid { get; set; }
     public int SchemaVersion { get; set; }
 
-    /// <summary>Parent folder of all media folders. All stored paths are relative to it.</summary>
+    /// <summary>
+    /// Folder whose subfolders are media. Stored paths start with the Media ID; for these media the full path is
+    /// root + stored path.
+    /// </summary>
     public string RootPath { get; set; } = string.Empty;
+
+    /// <summary>Media may also come from other folders and drives (USB drives, other shares), not only the root.</summary>
+    public bool AllowExternalMedia { get; set; }
 
     public string ClientName { get; set; } = string.Empty;
 

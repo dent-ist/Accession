@@ -181,6 +181,7 @@ internal sealed partial class FakeShell : ObservableObject, IShellModel
     public string ReadOnlyTooltip => @"LITSUPPORT\john.roe has this inventory open for editing on LIT-PC12.";
     public bool IsReadOnly { get; }
     public bool IsOffline => false;
+    public string OfflineText => "Browsing works; scanning is disabled until it is back.";
     public string Notice => string.Empty;
     public string ScanStatus => IsScanActive ? "123-123_003 · Hashing 41,210 of 96,020 files · 212 MB/s" : string.Empty;
     public bool IsScanActive { get; }
@@ -228,12 +229,6 @@ internal sealed partial class FakeApp(object screen) : ObservableObject, IAppMod
     {
     }
 
-    public string UpdateText { get; set; } = string.Empty;
-    public ICommand ShowUpdateCommand { get; } = new RelayCommand(() => { });
-    public ICommand DownloadUpdateCommand { get; } = new RelayCommand(() => { });
-    public ICommand SkipUpdateCommand { get; } = new RelayCommand(() => { });
-    public ICommand DismissUpdateCommand { get; } = new RelayCommand(() => { });
-    public ICommand CheckForUpdatesCommand { get; } = new RelayCommand(() => { });
 }
 
 internal sealed class FakeStart : ObservableObject, IStartModel

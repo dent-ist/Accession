@@ -53,6 +53,18 @@
                                    @onclick:stopPropagation="true" @onchange="e => Check(context, e.Value is true)" />
                         </Column>
                         <Column TItem="MediaRowViewModel" Title="Media ID" SortKey="id" Class="mono strong">@context.MediaId</Column>
+                        @if (Model.ShowLocation)
+                        {
+                            <Column TItem="MediaRowViewModel" Title="Location" SortKey="location" Class="location-col">
+                                <span class="truncate location-cell @(context.IsExternal ? "mono" : "muted")" title="@context.LocationTitle">
+                                    @if (context.IsExternal)
+                                    {
+                                        <Icon Name="drive" Size="13" />
+                                    }
+                                    @context.Location
+                                </span>
+                            </Column>
+                        }
                         <Column TItem="MediaRowViewModel" Title="Status" SortKey="status">
                             <span class="status @StatusStyles.ForMedia(context.Status)">@context.Status</span>
                         </Column>
@@ -103,8 +115,19 @@
                         <button class="icon-btn" title="Open in Explorer" disabled="@Disabled(Model.OpenInExplorerCommand)" @onclick="() => Run(Model.OpenInExplorerCommand)"><Icon Name="external" Size="15" /></button>
                     </div>
                     <div class="muted small detail-added">@Model.DetailsAdded</div>
+                    @if (row.IsExternal)
+                    {
+                        <div class="muted small detail-added" style="white-space: pre-line">@row.LocationTitle</div>
+                        <button class="btn btn-sm detail-location" disabled="@Disabled(Model.ChangeLocationCommand)" @onclick="() => Run(Model.ChangeLocationCommand)">
+                            <Icon Name="folder-open" Size="14" /> Change location…
+                        </button>
+                    }
 
-                    @if (row.IsMissing)
+                    @if (row.IsMissing && row.IsExternal)
+                    {
+                        <div class="banner is-warning"><Icon Name="errors" /><span>Its drive or folder is not connected. Its inventory data is kept: browse and export work. Connect the drive (any drive letter), or use <em>Change location</em> if its files moved.</span></div>
+                    }
+                    else if (row.IsMissing)
                     {
                         <div class="banner is-danger"><Icon Name="errors" /><span>The media folder was not found under the root. Its inventory data is kept; rescan when the folder is back.</span></div>
                     }
@@ -189,6 +212,7 @@
             IEnumerable<MediaRowViewModel> rows = _sortKey switch
             {
                 "status" => Model.Rows.OrderBy(r => r.Status, StringComparer.CurrentCulture),
+                "location" => Model.Rows.OrderBy(r => r.Location, StringComparer.CurrentCultureIgnoreCase),
                 "folders" => Model.Rows.OrderBy(r => r.FolderCount),
                 "files" => Model.Rows.OrderBy(r => r.FileCount),
                 "size" => Model.Rows.OrderBy(r => r.TotalBytes),

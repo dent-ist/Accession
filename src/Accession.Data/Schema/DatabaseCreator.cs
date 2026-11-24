@@ -38,14 +38,15 @@ public static class DatabaseCreator
             connection.Execute(InventorySchema.LoadScript("V001_Initial.sql"), transaction: transaction);
             connection.Execute(InventorySchema.LoadScript(Migrations.V002SavedSearches.Script), transaction: transaction);
             connection.Execute(InventorySchema.LoadScript(Migrations.V003SavedSearchMachine.Script), transaction: transaction);
+            connection.Execute(InventorySchema.LoadScript(Migrations.V004ExternalMedia.Script), transaction: transaction);
             connection.Execute(
                 """
                 INSERT INTO InventoryConfig (ConfigId, InventoryGuid, SchemaVersion, RootPath, ClientName, ClientCode,
                     MatterName, MatterCode, Description, MatterUrl, CreatedAtUtc, CreatedBy, CreatedOnMachine,
-                    CreatedAppVersion, LastOpenedAtUtc, LastOpenedBy, LastDbPath)
+                    CreatedAppVersion, LastOpenedAtUtc, LastOpenedBy, LastDbPath, AllowExternalMedia)
                 VALUES (1, @InventoryGuid, @SchemaVersion, @RootPath, @ClientName, @ClientCode,
                     @MatterName, @MatterCode, @Description, @MatterUrl, @CreatedAtUtc, @CreatedBy, @CreatedOnMachine,
-                    @CreatedAppVersion, @LastOpenedAtUtc, @LastOpenedBy, @LastDbPath);
+                    @CreatedAppVersion, @LastOpenedAtUtc, @LastOpenedBy, @LastDbPath, @AllowExternalMedia);
                 INSERT INTO InventoryLock (LockId, IsLocked) VALUES (1, 0);
                 INSERT INTO SchemaMigration (Version, AppliedAtUtc, AppliedBy, AppVersion)
                 VALUES (@SchemaVersion, @CreatedAtUtc, @CreatedBy, @CreatedAppVersion);

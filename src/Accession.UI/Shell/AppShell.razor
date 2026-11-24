@@ -106,7 +106,6 @@
                         @if (App is not null)
                         {
                             <MenuItem Icon="help" Text="Help" Command="App.HelpCommand" CommandParameter="HelpTopics.Contents" />
-                            <MenuItem Icon="refresh" Text="Check for updates…" Command="App.CheckForUpdatesCommand" />
                         }
                         <MenuItem Icon="logout" Text="Close inventory" Command="Model.CloseInventoryCommand" />
                     </ChildContent>
@@ -114,7 +113,6 @@
             </div>
         </header>
 
-        <UpdateBanner />
         @if (!string.IsNullOrEmpty(Model.Notice))
         {
             <div class="banner is-info">
@@ -127,7 +125,7 @@
         {
             <div class="banner is-danger">
                 <Icon Name="offline" />
-                <span>The root folder <code>@Model.RootPath</code> is not reachable. Browsing works; scanning is disabled until it is back.</span>
+                <span>The root folder <code>@Model.RootPath</code> is not reachable. @Model.OfflineText</span>
             </div>
         }
 

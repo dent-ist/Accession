@@ -18,6 +18,9 @@ public enum AuditAction
     RootPathChanged,
     MediaAdded,
     MediaDeleted,
+
+    /// <summary>A media outside the root was pointed at another folder or drive (its drive letter or share changed).</summary>
+    MediaLocationChanged,
     ScanQueued,
     ScanStarted,
     ScanPaused,

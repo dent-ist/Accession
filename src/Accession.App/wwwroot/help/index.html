@@ -22,6 +22,7 @@
         <div class="nav-group">Screens</div>
         <a href="#dashboard">Dashboard</a>
         <a href="#media">Media</a>
+        <a href="#other-drives">Media on other drives</a>
         <a href="#files">Files</a>
         <a href="#saved-searches">Saved searches</a>
         <a href="#copy">Copying files</a>
@@ -45,6 +46,7 @@
                 <li><a href="#start"><strong>Start screen and inventories</strong><span>Create or open an inventory</span></a></li>
                 <li><a href="#dashboard"><strong>Dashboard</strong><span>Totals, categories, years, largest files</span></a></li>
                 <li><a href="#media"><strong>Media</strong><span>Add, scan and delete media</span></a></li>
+                <li><a href="#other-drives"><strong>Media on other drives</strong><span>USB drives, other shares, any folder</span></a></li>
                 <li><a href="#files"><strong>Files</strong><span>Browse, filter and find files</span></a></li>
                 <li><a href="#saved-searches"><strong>Saved searches</strong><span>Collect files in named lists</span></a></li>
                 <li><a href="#copy"><strong>Copying files</strong><span>A copy batch, or copy in the app</span></a></li>
@@ -69,7 +71,8 @@
             <ul>
                 <li><strong>New inventory</strong> (<kbd>Ctrl</kbd> <kbd>N</kbd>) asks for the matter details and the <strong>root folder</strong>:
                     the folder whose subfolders are the media (for example <code>\\evidence01\intake\NW-2026-0142</code> with
-                    <code>123-123_001</code>, <code>123-123_002</code>, … inside).</li>
+                    <code>123-123_001</code>, <code>123-123_002</code>, … inside). Tick <em>Also allow media from other folders and
+                    drives</em> to add USB drives or folders elsewhere too (see <a href="#other-drives">Media on other drives</a>).</li>
                 <li><strong>Open inventory</strong> (<kbd>Ctrl</kbd> <kbd>O</kbd>) opens an inventory file. <strong>Recent inventories</strong>
                     lists the ones you opened before; files that have moved are marked <em>Not found</em>.</li>
                 <li>The settings (gear) and the light/dark theme switch are at the top right.</li>
@@ -81,7 +84,8 @@
                 <li><strong>Older inventory</strong>: if it was made by an older version of Accession, you are asked to
                     <em>Back up and upgrade</em>. A backup copy is kept next to the file.</li>
                 <li><strong>Root folder not reachable</strong> (share offline, moved): <em>Retry</em>, <em>Open offline</em> (browse only,
-                    no scanning) or <em>Change root path…</em> if the media were moved.</li>
+                    the root's media cannot be scanned; media on other drives still can) or <em>Change root path…</em> if the media were
+                    moved.</li>
                 <li><strong>New media found</strong>: folders under the root that are not in the inventory yet are offered for adding.</li>
                 <li>Someone else has it open: see <a href="#locking">Locking and read-only</a>.</li>
             </ul>
@@ -116,7 +120,8 @@
         <section id="media">
             <h2>Media</h2>
             <p>The media are the folders directly under the root folder, one per drive, device or delivery (for example
-                <code>123-123_001</code>). This screen lists them with their status and totals.</p>
+                <code>123-123_001</code>), and – if the inventory allows it – folders and drives elsewhere (see
+                <a href="#other-drives">Media on other drives</a>). This screen lists them with their status and totals.</p>
             <figure><img src="images/media.png" alt="Media screen with the list and the details panel" />
                 <figcaption>The media list, with the details of the selected media on the right.</figcaption></figure>
             <ul>
@@ -141,11 +146,109 @@
                         <tr><td>Completed with errors</td><td>Done, but some files could not be read: see <a href="#errors">Errors</a>.</td></tr>
                         <tr><td>Incomplete</td><td>The scan was interrupted; <em>Resume</em> finishes it.</td></tr>
                         <tr><td>Missing</td><td>The folder is no longer under the root.</td></tr>
+                        <tr><td>Not connected</td><td>A media on another drive whose drive (or folder) is not there now.</td></tr>
                     </table>
                 </div>
             </div>
             <figure><img src="images/media-scanning.png" alt="Media screen while a scan runs" />
                 <figcaption>During a scan the top bar shows its progress with Pause, Resume and Cancel.</figcaption></figure>
+        </section>
+
+        <section id="other-drives">
+            <h2>Media on other drives</h2>
+            <p>Media do not have to be in the root folder. An inventory can also take a <strong>USB drive</strong> as it was received,
+                a folder on <strong>another share</strong>, or <strong>any folder</strong> on this computer, next to the subfolders of
+                the root. Their files are listed, hashed, browsed, copied and exported like any other media, and they are only ever
+                read.</p>
+            <figure><img src="images/media-external.png" alt="Media screen with media on other drives" />
+                <figcaption>The Location column shows where each media is. A drive that is not plugged in is <em>Not connected</em>; its
+                    details show the drive's label and serial number.</figcaption></figure>
+
+            <h3>Turning it on</h3>
+            <ul>
+                <li>When creating an inventory: tick <strong>Also allow media from other folders and drives</strong> in
+                    <em>New inventory</em>.</li>
+                <li>For an existing inventory: the same option in <strong>Inventory properties</strong> (<strong>⋯</strong> menu).
+                    Older inventories are upgraded when they are opened (a backup copy is kept).</li>
+                <li>The root folder is still needed: its subfolders are still found by <em>Discover</em>. The option can be turned off
+                    again only while no media from another drive is in the inventory. Each change is recorded in the audit log.</li>
+            </ul>
+
+            <h3>Adding a drive or folder</h3>
+            <div class="row">
+                <figure class="small"><img src="images/dialog-external-media.png" alt="Add media from another folder or drive" /></figure>
+                <div>
+                    <ol>
+                        <li>Plug in the drive (a write blocker is a good idea, although Accession never writes to it).</li>
+                        <li>Choose <strong>Add media</strong>, then <em>Add another folder…</em>, and pick the drive (for example
+                            <code>E:\</code>) or a folder anywhere. The dialog <strong>Add media from another folder or drive</strong>
+                            opens. (While the root is offline, <em>Add media</em> opens it directly.)</li>
+                        <li>Check what Accession recognised: a whole drive with its label and serial number, a folder on a drive, or a
+                            network folder.</li>
+                        <li>Check the <strong>Media ID</strong>. For a whole drive it is the drive's <em>volume label</em>, otherwise the
+                            folder name; change it as you like, e.g. to your evidence number.</li>
+                        <li>Leave <em>Start scanning it</em> ticked to scan it right away, and choose <strong>Add media</strong>.</li>
+                    </ol>
+                </div>
+            </div>
+            <p>The <strong>Media ID</strong> must be unique in the inventory and must work as a folder name, because copies of the
+                media's files go into a folder of that name: no <code>\ / : * ? " &lt; &gt; |</code>, not a name Windows reserves
+                (<code>CON</code>, <code>NUL</code>, <code>COM1</code>…), at most 100 characters, and not the name of a folder in the
+                root.</p>
+            <p>Some folders cannot be added, because their files would be counted twice or the inventory would list itself:</p>
+            <ul>
+                <li>a folder in the root folder (add it as a media of the root instead), inside the root, or one that contains the root;</li>
+                <li>a folder that is, contains or is inside another media – also on the same drive under another letter;</li>
+                <li>a folder that contains the inventory file.</li>
+            </ul>
+
+            <h3>How a drive is recognised</h3>
+            <ul>
+                <li>Drive letters change: a USB drive is <code>E:</code> today and <code>F:</code> tomorrow, and <code>E:</code> on a
+                    colleague's computer is another device. So Accession remembers the drive's <strong>serial number</strong> (and its
+                    label, and the computer it was added on) and checks it before reading.</li>
+                <li>If the drive is plugged in under another letter, Accession finds it there by its serial number: nothing to do.</li>
+                <li>If the remembered letter now holds a different device, the media is <em>Not connected</em>: Accession never reads the
+                    wrong drive.</li>
+                <li>A mapped network drive (<code>Z:</code>) is remembered as its network path (<code>\\server\share\…</code>), because
+                    mapped letters differ between users. Network folders are found by their path.</li>
+            </ul>
+
+            <h3>On the Media screen</h3>
+            <ul>
+                <li>The <strong>Location</strong> column says <em>Root folder</em>, or shows the media's folder or drive; hover over it
+                    for the drive's label and serial number.</li>
+                <li>The details of such a media show its folder, the drive's label and serial number, and the computer it was added on.</li>
+                <li><strong>Change location…</strong> in the details points the media at the place its files are now, for example a copy
+                    of the drive on a share. Accession compares the folders and files at the top of the media with the chosen folder and
+                    asks first if fewer than half of them are there. The scan results are kept; the change is recorded in the audit log.</li>
+            </ul>
+
+            <h3>When a drive is not connected</h3>
+            <p>When the drive is unplugged (or the share is offline), the media shows as <strong>Not connected</strong>. Its inventory
+                data is kept: the Dashboard, the Files screen, duplicates, saved searches and exports work as usual. What needs the files
+                waits until the drive is back:</p>
+            <ul>
+                <li>it cannot be scanned (queueing it says why);</li>
+                <li>copying its files fails for those files, with the reason, and the other files are copied;</li>
+                <li><em>Show in folder</em> and <em>Open in Explorer</em> say that it is not connected; <em>Copy path</em> copies the
+                    path where it was.</li>
+            </ul>
+            <p>Plug it in (any drive letter) and choose <strong>Refresh</strong> (or reopen the inventory): Accession checks these media
+                when an inventory opens and on <em>Refresh</em>/<em>Discover</em>, also while the root folder is offline, and gives them
+                their status back.</p>
+
+            <h3>Scanning, copying and exporting</h3>
+            <ul>
+                <li>Scanning works as for root media; a scan of a whole drive skips <code>$RECYCLE.BIN</code> and <code>System Volume
+                    Information</code> at its top, as at the root.</li>
+                <li>While the root folder is offline, media on other drives can still be added and scanned.</li>
+                <li>Copies are never written into a media's folder or drive, as they are never written under the root. A copy batch
+                    whose files include media on other drives must run where those drives have the same letters (its header says
+                    so).</li>
+                <li>Exports list where each media is: the <em>Media</em> sheet has <em>Location</em> and <em>Drive</em> (label and serial)
+                    columns, and the <em>Summary</em> says how many media are on other drives.</li>
+            </ul>
         </section>
 
         <section id="files">
@@ -242,7 +345,8 @@
                 <li><strong>Copy files…</strong> copies the files in Accession, in the background with progress and <strong>Cancel</strong>.</li>
             </ul>
             <p>Both copy the <em>ticked rows</em>, or <em>all results</em> (every page) when you choose so or nothing is ticked. The source
-                files are only read: nothing is ever written under the root, and the destination cannot be inside it.</p>
+                files are only read: nothing is ever written under the root or into a media's folder on another drive, and the
+                destination cannot be inside them.</p>
             <div class="row">
                 <figure><img src="images/dialog-copy-batch.png" alt="Generate copy batch dialog" /></figure>
                 <div>
@@ -349,8 +453,9 @@
 
         <section id="audit">
             <h2>Audit Log</h2>
-            <p>Every change to the inventory, who made it, on which computer and when: created, opened, media added or deleted, scans,
-                exports, saved searches and more. Entries can never be edited or deleted.</p>
+            <p>Every change to the inventory, who made it, on which computer and when: created, opened, media added (with the drive's
+                serial number for media on other drives), moved to another location or deleted, scans, exports, saved searches and more.
+                Entries can never be edited or deleted.</p>
             <figure><img src="images/audit.png" alt="Audit Log screen" /></figure>
             <ul>
                 <li>Filter by action, user, media and date range; <strong>Clear</strong> resets the filters.</li>
@@ -378,6 +483,8 @@
                         <li>Sizes are in two columns: <strong>Size (bytes)</strong> and <strong>Size (MB)</strong> (numbers, so Excel can sort
                             and add them; MiB with binary units in Settings).</li>
                         <li>Dates are in UTC. Each sheet has a frozen, filtered header row.</li>
+                        <li>The <em>Media</em> sheet says where each media is: <em>Location</em> (its folder) and, for a media on another
+                            drive, <em>Drive</em> (label and serial number).</li>
                         <li>Excel holds about a million rows per sheet: larger file lists continue on <em>Files (1)</em>, <em>Files (2)</em>, …</li>
                     </ul>
                 </div>
@@ -398,23 +505,16 @@
                         <li><strong>Display</strong>: sizes in decimal (KB, MB, GB) or binary (KiB, MiB, GiB) units; times in local or UTC.</li>
                         <li><strong>Scanning</strong>: threads for listing and hashing, and the database batch size. The defaults suit most shares.</li>
                         <li><strong>Export</strong>: the default export folder and whether to write one workbook per media.</li>
-                        <li><strong>Updates</strong>: <em>Check for new versions</em> (on by default) – see below.</li>
                         <li><strong>Copying</strong>: how many files <a href="#copy">Copy files</a> and Quick Copy copy at the same time (4 by
                             default, up to 16). More threads help with many small files or a network destination; for large files the
                             disks are the limit.</li>
                     </ul>
-                    <h3>New versions</h3>
-                    <p>A few seconds after start-up, at most once a day, Accession asks GitHub for its latest release. When there is a
-                        newer one, a bar says so on the Start screen and on the inventory screens: <em>What's new</em> shows the release
-                        notes, <em>Download</em> opens the release page, <em>Skip this version</em> stops announcing it (a later version
-                        is announced), and <strong>×</strong> hides it until the next start. <em>Check for updates…</em> in the
-                        <strong>⋯</strong> menu (or under the version on the Start screen) asks at once. Only the request is sent,
-                        nothing about you or your inventories; turn the check off in Settings on computers without internet.</p>
-                    <figure><img src="images/update-banner.png" alt="New version bar" /></figure>
                     <h3>Inventory properties</h3>
                     <p><strong>Inventory properties</strong> in the <strong>⋯</strong> menu edits the matter details (client, matter, IDs,
-                        description, matter link) and shows the inventory's facts. <strong>Change root path</strong> points the inventory at
-                        media that were moved, without scanning again.</p>
+                        description, matter link) and shows the inventory's facts. <strong>Also allow media from other folders and
+                        drives</strong> lets the inventory take USB drives and folders outside the root (see <a href="#other-drives">Media
+                        on other drives</a>). <strong>Change root path</strong> points the inventory at media that were moved, without
+                        scanning again (media on other drives are not affected).</p>
                 </div>
             </div>
             <h3>The top bar</h3>

@@ -25,8 +25,6 @@ public sealed class WebAppViewModel : ViewModelBase, IAppModel
     private readonly Func<StartViewModel> _startFactory;
     private readonly Func<WebShellViewModel> _shellFactory;
     private ViewModelBase? _screen;
-    private readonly UpdateService? _updates;
-    private static readonly ICommand Nothing = new RelayCommand(() => { }, () => false);
 
     public WebAppViewModel(
         InventoryHost host,
@@ -37,15 +35,8 @@ public sealed class WebAppViewModel : ViewModelBase, IAppModel
         DialogCenter dialogs,
         Func<StartViewModel> startFactory,
         Func<WebShellViewModel> shellFactory,
-        IDesktop desktop,
-        UpdateService? updates = null)
+        IDesktop desktop)
     {
-        _updates = updates;
-        if (updates is not null)
-        {
-            updates.PropertyChanged += (_, _) => OnPropertyChanged(nameof(UpdateText));
-        }
-
         HelpCommand = new RelayCommand<string?>(topic => desktop.ShowHelp(topic ?? HelpTopics.Contents));
         _host = host;
         _settings = settings;
@@ -92,26 +83,10 @@ public sealed class WebAppViewModel : ViewModelBase, IAppModel
 
     public ICommand HelpCommand { get; }
 
-    public string UpdateText => _updates?.BannerText ?? string.Empty;
-
-    public ICommand ShowUpdateCommand => _updates?.ShowDetailsCommand ?? Nothing;
-
-    public ICommand DownloadUpdateCommand => _updates?.DownloadCommand ?? Nothing;
-
-    public ICommand SkipUpdateCommand => _updates?.SkipCommand ?? Nothing;
-
-    public ICommand DismissUpdateCommand => _updates?.DismissCommand ?? Nothing;
-
-    public ICommand CheckForUpdatesCommand => _updates?.CheckNowCommand ?? Nothing;
-
     /// <summary>The page rendered at least once (the web view works).</summary>
     public bool IsPageRendered { get; private set; }
 
-    public void PageRendered()
-    {
-        IsPageRendered = true;
-        _updates?.StartAutomaticCheck(); // once, a few seconds after the app is up
-    }
+    public void PageRendered() => IsPageRendered = true;
 
     public override void OnNavigatedTo()
     {

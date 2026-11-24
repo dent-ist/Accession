@@ -658,7 +658,11 @@ public sealed partial class WebFilesViewModel : ViewModelBase, IFilesModel, IDis
     private Task CopyTargetSha1s() => CopyTargetsAsync(f => f.Sha1, "SHA-1", "No SHA-1 yet: the file is not hashed.");
 
     [RelayCommand]
-    private Task CopyTargetPaths() => CopyTargetsAsync(f => _host.Config is { } c ? ScanPaths.ToFullPath(c.RootPath, f.RelativePath) : null, "Path", null);
+    private Task CopyTargetPaths()
+    {
+        var locations = _host.Locations();
+        return CopyTargetsAsync(f => locations?.DisplayPath(f.RelativePath), "Path", null);
+    }
 
     [RelayCommand]
     private Task CopyTargetNames() => CopyTargetsAsync(f => f.Name, "File name", null);
@@ -769,14 +773,14 @@ public sealed partial class WebFilesViewModel : ViewModelBase, IFilesModel, IDis
 
     private string? FolderFullPath()
     {
-        if (_contextFolder is not { } node || _host.Session is not { } session || _host.Config is not { } config)
+        if (_contextFolder is not { } node || _host.Session is not { } session || _host.Locations() is not { } locations)
         {
             return null;
         }
 
         try
         {
-            return _queries.FolderPath(session.Database, node.Info.FolderId) is { } relative ? ScanPaths.ToFullPath(config.RootPath, relative) : null;
+            return _queries.FolderPath(session.Database, node.Info.FolderId) is { } relative ? locations.DisplayPath(relative) : null;
         }
         catch (Exception ex) when (ex is Microsoft.Data.Sqlite.SqliteException or IOException)
         {
@@ -817,9 +821,9 @@ public sealed partial class WebFilesViewModel : ViewModelBase, IFilesModel, IDis
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void CopyPath()
     {
-        if (SelectedRow is { } row && _host.Config is { } config)
+        if (SelectedRow is { } row && _host.Locations() is { } locations)
         {
-            _desktop.SetClipboardText(ScanPaths.ToFullPath(config.RootPath, row.RelativePath));
+            _desktop.SetClipboardText(locations.DisplayPath(row.RelativePath));
             _toasts.Show("Path copied", ToastKind.Success);
         }
     }
@@ -838,12 +842,17 @@ public sealed partial class WebFilesViewModel : ViewModelBase, IFilesModel, IDis
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void OpenContainingFolder()
     {
-        if (SelectedRow is not { } row || _host.Config is not { } config)
+        if (SelectedRow is not { } row || _host.Locations() is not { } locations)
         {
             return;
         }
 
-        var path = ScanPaths.ToFullPath(config.RootPath, row.RelativePath);
+        if (locations.FullPath(row.RelativePath) is not { } path)
+        {
+            _toasts.Show($"{row.MediaId} is not connected: {locations.ExpectedFullPath(row.RelativePath)}", ToastKind.Warning);
+            return;
+        }
+
         if (File.Exists(path))
         {
             _desktop.SelectInExplorer(path);

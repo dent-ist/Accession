@@ -44,6 +44,30 @@ public sealed class MediaRepository(DbScope scope) : RepositoryBase(scope)
             Transaction);
     }
 
+    /// <summary>Registers a media outside the root (status New) and returns its key.</summary>
+    public long InsertExternal(string mediaId, string sourcePath, string? volumeSerial, string? volumeLabel, string machine,
+        DateTimeOffset addedAt, string addedBy)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+
+        return Connection.ExecuteScalar<long>(
+            """
+            INSERT INTO Media (MediaId, RelativePath, Status, AddedAtUtc, AddedBy, SourcePath, VolumeSerial, VolumeLabel, AddedOnMachine)
+            VALUES (@mediaId, @relativePath, @status, @addedAt, @addedBy, @sourcePath, @volumeSerial, @volumeLabel, @machine);
+            SELECT last_insert_rowid();
+            """,
+            new { mediaId, relativePath = $@"\{mediaId}\", status = nameof(MediaStatus.New), addedAt, addedBy, sourcePath, volumeSerial, volumeLabel, machine },
+            Transaction);
+    }
+
+    /// <summary>Points a media outside the root at another folder (or drive).</summary>
+    public void UpdateLocation(long mediaKey, string sourcePath, string? volumeSerial, string? volumeLabel) =>
+        Connection.Execute(
+            "UPDATE Media SET SourcePath = @sourcePath, VolumeSerial = @volumeSerial, VolumeLabel = @volumeLabel WHERE MediaKey = @mediaKey",
+            new { mediaKey, sourcePath, volumeSerial, volumeLabel },
+            Transaction);
+
     public void SetStatus(long mediaKey, MediaStatus status) =>
         Connection.Execute(
             "UPDATE Media SET Status = @status WHERE MediaKey = @mediaKey",

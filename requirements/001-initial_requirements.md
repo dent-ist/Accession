@@ -31,10 +31,11 @@ The application is **read-only toward the evidence**: it must never modify sourc
 | Term | Definition |
 |---|---|
 | **Inventory** | One SQLite database file (`*.accession`) holding everything about one matter's media. The extension is not `.sqlite` so it is not mistaken for an ordinary SQLite file; inventories created before version 0.2 (`*.sqlite`) open as before. |
-| **Root folder** | The single parent folder that directly contains all media folders of an inventory. Stored in `InventoryConfig.RootPath`. |
-| **Media** | An immediate subfolder of the root folder. |
-| **Media ID** | The media folder's name, whatever it is (`123-123_001`, `My Media`, …). No format is enforced. |
-| **Relative path** | A path relative to the root folder, always starting with the Media ID, e.g. `\123-123_001\files\`. |
+| **Root folder** | The parent folder whose subfolders are the inventory's media (all of them, unless the inventory allows media from other folders and drives). Stored in `InventoryConfig.RootPath`. |
+| **Media** | An immediate subfolder of the root folder, or – when the inventory allows it (MED-08) – any folder or whole drive elsewhere (a USB drive, another share). |
+| **Media ID** | The media folder's name, whatever it is (`123-123_001`, `My Media`, …); for a media outside the root, a name chosen when it is added (default: the drive's volume label or the folder name). No format is enforced beyond being a valid folder name. |
+| **Relative path** | A stored path, always starting with the Media ID, e.g. `\123-123_001\files\`: under the root for root media, under the media's own folder or drive for the others. |
+| **Not connected** | A media outside the root whose drive or folder cannot be found now (MED-12). |
 | **Scan** | Enumerating all folders/files of a media and hashing each file. |
 | **Category** | An application-defined grouping of file extensions (Email, Chat, Spreadsheets, …). |
 | **Lock** | A record in the inventory that marks it as in use by one user/machine. |
@@ -75,7 +76,7 @@ The application is **read-only toward the evidence**: it must never modify sourc
 | TECH-04 | Database access via `Microsoft.Data.Sqlite`. Recommended helpers: Dapper (queries), CommunityToolkit.Mvvm (MVVM), a streaming Excel writer (MiniExcel or Open XML SDK `OpenXmlWriter`), a WPF chart library (LiveCharts2 or ScottPlot), Serilog (application log). Final library choice is a design decision; all must have licences allowing commercial use. |
 | TECH-05 | Application settings (per Windows user) stored in `%APPDATA%\Accession\settings.json`. Application log in `%LOCALAPPDATA%\Accession\logs\`. |
 | TECH-06 | The application must support paths longer than 260 characters (UNC and local) – long paths are normal in eDiscovery data. |
-| TECH-07 | Solution `Accession.sln` with projects `Accession.App` (WPF UI), `Accession.Core` (services, scanning, models – no UI references), `Accession.Data` (SQLite access) and `Accession.Tests`. Root namespace `Accession`. The repository name stays `minventory`. |
+| TECH-07 | Solution `Accession.sln` with projects `Accession.App` (WPF UI), `Accession.Core` (services, scanning, models – no UI references), `Accession.Data` (SQLite access) and `Accession.Tests`. Root namespace `Accession`. |
 
 ## 5. Functional Requirements
 
@@ -91,7 +92,7 @@ The application is **read-only toward the evidence**: it must never modify sourc
 | INV-06 | On open the application runs the **Open sequence** (section 5.3). |
 | INV-07 | **Inventory Properties**: matter fields and Matter Link URL can be edited after creation. Each change is audited with old and new values. |
 | INV-08 | **Matter Link**: when a URL is set, a *Open Matter* button/link opens it in the default browser. |
-| INV-09 | **Relocate (Change Root Path)**: the user can change `RootPath`. The app validates that the new path exists and warns if any registered media folder is not found under it (lists them), then asks for confirmation. No rescan is needed because all stored paths are relative. Audited with old/new path. |
+| INV-09 | **Relocate (Change Root Path)**: the user can change `RootPath`. The app validates that the new path exists and warns if any registered media folder is not found under it (lists them), then asks for confirmation. No rescan is needed because all stored paths are relative. Only the root's media are looked for; a new root that overlaps a media on another drive (MED-08) is refused. Audited with old/new path. |
 | INV-10 | **Close Inventory**: waits for / asks to pause any running scan, releases the lock, writes an audit entry. Closing the app does the same. |
 | INV-11 | **Schema version**: `InventoryConfig.SchemaVersion` is an integer (starts at `1`). On open: equal → open; older → offer upgrade (a backup copy `<name>.v<old>.<yyyyMMddHHmmss>.bak` is made first, then migrations run in a transaction, audited); newer → refuse to open with a message to update the application. |
 
@@ -133,19 +134,24 @@ flowchart TD
 | DSC-03 | Registered media whose folder no longer exists → status **Missing** (shown with a warning icon). Data is kept. Status returns to its previous value when the folder reappears. |
 | DSC-04 | Media with status **New** (never scanned) or **Incomplete** (interrupted/cancelled) → notification offering *Scan now* / *Resume now* / *Later*. |
 | DSC-05 | Discovery ignores `$RECYCLE.BIN` and `System Volume Information` at the root level only. Inside media folders everything is scanned. |
-| DSC-06 | If the root path is unreachable, the user can retry, change the root path (INV-09) or continue offline (dashboard, browse, export work; scanning disabled). |
+| DSC-06 | If the root path is unreachable, the user can retry, change the root path (INV-09) or continue offline (dashboard, browse, export work; the root's media cannot be scanned; media on other drives still can, MED-12). |
 
 ### 5.4 Media management
 
 | ID | Requirement |
 |---|---|
 | MED-01 | **Add Media**: the user picks one or more folders, from the discovered list or via folder browser. |
-| MED-02 | A selected folder must be an **immediate child of the root folder**. Anything else is rejected with an explanation (e.g. `\abc\media1` when the root is `\def\`). |
-| MED-03 | The Media ID is the folder name as it appears on disk. Media IDs are unique (case-insensitive) among non-deleted media. |
+| MED-02 | A selected folder must be an **immediate child of the root folder**. Anything else is rejected with an explanation (e.g. `\abc\media1` when the root is `\def\`), unless the inventory allows media from other folders and drives (MED-08): then it is added as such a media (MED-09). |
+| MED-03 | The Media ID of a root media is the folder name as it appears on disk. Media IDs are unique (case-insensitive) among non-deleted media, whatever their location. |
 | MED-04 | Adding a media creates a `Media` row with status **New** and writes an audit entry. If *Add & scan* was chosen, it is queued for scanning. |
 | MED-05 | **Delete Media**: requires confirmation (the user types the Media ID). It is not allowed while the media is scanning or queued (cancel first). All its `Folder`, `File`, `ScanError` and summary rows are deleted; the `Media` row is marked deleted (`IsDeleted=1`, `DeletedAtUtc`, `DeletedBy`). **ScanLog and AuditLog entries are kept.** |
 | MED-06 | A deleted media's folder can be added again; this creates a new `Media` row. |
 | MED-07 | *Open in Explorer* opens the media folder (read-only action, no audit). |
+| MED-08 | **Media from other folders and drives**: an inventory can allow media outside the root (USB drives, other shares, any folder): an option in *New Inventory* and in *Inventory Properties* (audited as `ConfigUpdated`). It can be turned off only while no such media is in the inventory. The root stays required: its subfolders are still discovered (DSC-01). |
+| MED-09 | **Adding one**: in *Add Media*, a folder chosen outside the root opens *Add media from another folder or drive*: the folder or a whole drive, the **Media ID** (default: the drive's **volume label** for a whole drive, else the folder name; editable), and *Start scanning it*. The Media ID must be a valid Windows folder name (no `\ / : * ? " < > \|`, not a reserved device name, at most 100 characters), unique, and not the name of a folder in the root. Refused, with the reason: a folder in, inside or containing the root; one that is, contains or is inside another media (also the same drive under another letter); one that contains the inventory file (INV-03). Audited as `MediaAdded` with the location, volume serial and label. |
+| MED-10 | **Recognising the drive**: a source on a local drive records the drive's **serial number** (and label, and the computer it was added on). Drive letters change, so before reading, the app checks the serial: the drive is found under any letter; if the recorded letter now holds another device, the media is *not connected* and nothing is read from it. A mapped network drive is stored as its UNC path (`Z:\x` → `\\server\share\x`). Stored paths always start with `\<MediaID>\` (SCN-13), for root media and these alike; only the folder they are read from differs. |
+| MED-11 | **Change location**: a media outside the root can be pointed at its drive under another letter or at the folder its files were moved to. The app compares the top-level folders and files of the media with the chosen folder and asks first when fewer than half are there. The same rules as MED-09 apply; a *Missing* media gets its status back; audited as `MediaLocationChanged` (old and new location). |
+| MED-12 | **Not connected**: a media outside the root whose drive or folder cannot be found is *Missing* and shown as **Not connected** (DSC-03); its data is kept and can be browsed and exported, but it cannot be scanned (queueing it says why) and copying its files fails per file with the reason. Discovery checks these media on open and on *Refresh*, also while the root is offline; with the root offline, they can still be added and scanned (DSC-06). A whole drive as media skips `$RECYCLE.BIN` and `System Volume Information` at its top (DSC-05). Nothing is ever written into a media's folder (CPY-04). |
 
 **Media statuses:** `New`, `Queued`, `Scanning` (enumerating), `Hashing`, `Paused`, `Completed`, `CompletedWithErrors`, `Incomplete`, `Missing`.
 
@@ -270,7 +276,7 @@ flowchart TD
 | CPY-01 | The Files screen's **Copy** menu offers **Generate copy batch…** and **Copy files…** for the *ticked rows* or *all results* (every file matching the current filters, on all pages). |
 | CPY-02 | Naming: **keep the original folders and names** (`<destination>\<Media ID>\<folders>\<name>`) **sequential names** `<prefix><number>.<ext>` with a chosen prefix, number of digits (1–15) and first number; files are numbered in Media ID, folder, name order (case-insensitive); the extension keeps its case and a file without one gets no dot. A range that does not fit in the digits is refused. Or **SHA-1 names** (CPY-09). |
 | CPY-03 | Files already at the destination are **skipped** and reported, never overwritten. |
-| CPY-04 | Nothing is written under the root: the destination, the batch file and the manifest cannot be the root or inside it. Source files are only read (SCN-40, SCN-42). |
+| CPY-04 | Nothing is written under the root or into a media's folder on another drive (MED-08): the destination, the batch file and the manifest cannot be those folders or inside them. Source files are only read (SCN-40, SCN-42). Files of a media that is not connected fail with the reason (MED-12); a batch whose files include media on other drives says that their drive letters must be the same when it runs. |
 | CPY-05 | **Copy batch**: a `.bat` file (UTF-8, `chcp 65001`) with one command per file from a template: presets **copy** (`copy /Y {source} {destination} >nul`) and **robocopy** (keeps names only, so it is refused with sequential names), or a custom command. Placeholders `{source}`, `{destination}`, `{sourcedir}`, `{sourcename}`, `{destdir}`, `{destname}`; unquoted placeholders are quoted and `%` is doubled. The batch creates folders, skips existing files, counts copied, skipped and failed files (robocopy fails at exit code 8) and exits with 1 when any failed. On cancel or error no batch file is kept. |
 | CPY-06 | **Copy files** copies in the background with progress and Cancel. **Preserve metadata** (default on): created, modified and accessed times and attributes of files, and the times of the folders it creates; no ACLs. **Verify** (default off): reads each copy back and compares its SHA-1 with the bytes read from the source; a mismatch deletes the copy and counts as failed. A file that cannot be read fails and the copy goes on. Cancel keeps the files already copied. The result shows copied, verified, skipped, failed and not reached. |
 | CPY-07 | Both write a **CSV manifest** (UTF-8 with BOM): number, new path, original path, Media ID, size in bytes, modified (UTC), SHA-1 from the inventory, outcome (*In batch*, *Copied*, *Verified*, *Skipped*, *Failed*) and message; a cancelled copy ends with a *Stopped* row. A verified file whose SHA-1 differs from the inventory is noted. |
@@ -310,7 +316,6 @@ flowchart TD
 | Default export folder | Documents | |
 | Split export per media | Off | |
 | Copy threads | 4 | 1–16. Files copied at the same time by *Copy files* and *Quick Copy* (CPY-06, CPY-10); the manifest stays in copy order. |
-| Check for new versions | On | At start-up (after 5 s, at most once a day) the app reads the latest GitHub release of plogramer/Accession (`/releases/latest`, no sign-in, only the request is sent) and compares its tag (e.g. `v0.2`) with its own version. A newer version shows a bar on the Start and inventory screens (What's new with the release notes, Download opens the release page, Skip this version, hide until next start). *Check for updates…* (⋯ menu, Start screen) asks at once. Failures are silent. |
 | Recent inventories | — | Up to 15 |
 
 ## 6. Non-Functional Requirements
@@ -373,7 +378,8 @@ CREATE TABLE InventoryConfig (
     CreatedAppVersion   TEXT    NOT NULL,
     LastOpenedAtUtc     TEXT,
     LastOpenedBy        TEXT,
-    LastDbPath          TEXT                       -- where the .sqlite file was last opened from
+    LastDbPath          TEXT,                      -- where the .sqlite file was last opened from
+    AllowExternalMedia  INTEGER NOT NULL DEFAULT 0 -- v4: media from other folders and drives (MED-08)
 );
 
 -- Applied schema migrations.
@@ -398,7 +404,7 @@ CREATE TABLE InventoryLock (
 
 CREATE TABLE Media (
     MediaKey            INTEGER PRIMARY KEY,
-    MediaId             TEXT    NOT NULL COLLATE NOCASE,   -- folder name
+    MediaId             TEXT    NOT NULL COLLATE NOCASE,   -- folder name (root media) or chosen name (MED-09)
     RelativePath        TEXT    NOT NULL COLLATE NOCASE,   -- \123-123_001\
     Status              TEXT    NOT NULL,                  -- see 5.4
     StatusBeforeMissing TEXT,                              -- restored when a Missing folder reappears (DSC-03)
@@ -414,7 +420,11 @@ CREATE TABLE Media (
     ErrorCount          INTEGER NOT NULL DEFAULT 0,
     IsDeleted           INTEGER NOT NULL DEFAULT 0,
     DeletedAtUtc        TEXT,
-    DeletedBy           TEXT
+    DeletedBy           TEXT,
+    SourcePath          TEXT,                              -- v4: NULL = <root>\<MediaID>; else its folder or drive (MED-09)
+    VolumeSerial        TEXT,                              -- v4: local drive serial, 1A2B-3C4D (MED-10)
+    VolumeLabel         TEXT,                              -- v4
+    AddedOnMachine      TEXT                               -- v4: drive letters are per computer
 );
 CREATE UNIQUE INDEX UX_Media_MediaId_Active ON Media (MediaId) WHERE IsDeleted = 0;
 

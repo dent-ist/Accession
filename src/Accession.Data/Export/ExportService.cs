@@ -217,7 +217,7 @@ public sealed class ExportService(
                 new("Media ID", Width: 16), new("Status", Width: 20), new("Folders", XlsxCellType.Integer, 12),
                 new("Files", XlsxCellType.Integer, 14), new("Size (bytes)", XlsxCellType.Integer, 18), SizeColumn(unit),
                 new("Hashed files", XlsxCellType.Integer, 14), new("Errors", XlsxCellType.Integer, 10), new("Scans", XlsxCellType.Integer, 8),
-                new("Last scan completed (UTC)", XlsxCellType.DateTimeUtc, 24)]);
+                new("Last scan completed (UTC)", XlsxCellType.DateTimeUtc, 24), new("Location", Width: 44), new("Drive", Width: 28)]);
             foreach (var m in media)
             {
                 writer.BeginRow();
@@ -231,6 +231,8 @@ public sealed class ExportService(
                 writer.Integer(m.ErrorCount);
                 writer.Integer(m.ScanCount);
                 writer.DateTimeUtc(m.LastScanCompletedUtc);
+                writer.Text(m.SourcePath ?? MediaManagement.MediaFolders.FullPath(session.Config.RootPath, m.MediaId));
+                writer.Text(m.VolumeSerial is { } serial ? $"{m.VolumeLabel} (serial {serial})" : string.Empty);
                 writer.EndRow();
             }
         }
@@ -296,6 +298,11 @@ public sealed class ExportService(
         Text("Description", config.Description);
         Text("Matter link", config.MatterUrl);
         Text("Root path", config.RootPath);
+        if (media.Count(m => m.SourcePath is not null) is > 0 and var external)
+        {
+            Text("Media on other drives", $"{external:N0} (their folders are on the Media sheet)");
+        }
+
         Text("Inventory file", session.DbPath);
         Text("Inventory ID", config.InventoryGuid.ToString());
         Text("Scope", Describe(request, media));

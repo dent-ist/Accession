@@ -132,5 +132,7 @@ public sealed class FilesContextMenuTests : IDisposable
         {
             await Task.Delay(20, TestContext.Current.CancellationToken);
         }
+
+        await vm.LastLookups; // the media tree and saved searches load on their own
     }
 }

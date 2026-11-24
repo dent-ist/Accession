@@ -58,7 +58,7 @@ public sealed partial class MediaListViewModel : ViewModelBase, IMediaModel, IDi
     public ObservableCollection<ScanHistoryRow> ScanHistory { get; } = [];
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(DeleteCommand), nameof(OpenInExplorerCommand), nameof(OpenFilesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteCommand), nameof(OpenInExplorerCommand), nameof(OpenFilesCommand), nameof(ChangeLocationCommand))]
     public partial MediaRowViewModel? SelectedRow { get; set; }
 
     [ObservableProperty]
@@ -72,6 +72,8 @@ public sealed partial class MediaListViewModel : ViewModelBase, IMediaModel, IDi
     public bool HasRows => Rows.Count > 0;
 
     public bool IsReadOnly => _host.IsReadOnly;
+
+    public bool ShowLocation => _host.Config?.AllowExternalMedia == true || Rows.Any(r => r.IsExternal);
 
     public long? ScanningMediaKey => _scans.Current?.MediaKey;
 
@@ -139,6 +141,8 @@ public sealed partial class MediaListViewModel : ViewModelBase, IMediaModel, IDi
 
     ICommand IMediaModel.OpenFilesCommand => OpenFilesCommand;
 
+    ICommand IMediaModel.ChangeLocationCommand => ChangeLocationCommand;
+
     ICommand IRefreshableScreen.RefreshCommand => RefreshCommand;
 
     ICommand IMediaModel.ExportCommand => ExportCommand;
@@ -196,6 +200,19 @@ public sealed partial class MediaListViewModel : ViewModelBase, IMediaModel, IDi
             _workflows.OpenInExplorer(row.Media);
         }
     }
+
+    /// <summary>Points the selected media outside the root at its new folder or drive (MED-11).</summary>
+    [RelayCommand(CanExecute = nameof(CanChangeLocation))]
+    private void ChangeLocation()
+    {
+        if (SelectedRow is { } row)
+        {
+            _workflows.ChangeLocation(row.Media);
+        }
+    }
+
+    private bool CanChangeLocation() =>
+        SelectedRow is { IsExternal: true } row && _host.CanModify && !MediaService.BusyStatuses.Contains(row.Media.Status);
 
     /// <summary>Opens the Files screen for the selected media.</summary>
     [RelayCommand(CanExecute = nameof(HasSelection))]
@@ -291,6 +308,7 @@ public sealed partial class MediaListViewModel : ViewModelBase, IMediaModel, IDi
 
         SelectedRow = Rows.FirstOrDefault(r => r.Media.MediaKey == selectedKey);
         OnPropertyChanged(nameof(HasRows));
+        OnPropertyChanged(nameof(ShowLocation));
         RowsReloaded?.Invoke(this, EventArgs.Empty);
     }
 
@@ -305,7 +323,7 @@ public sealed partial class MediaListViewModel : ViewModelBase, IMediaModel, IDi
         }
 
         var zone = _settings.Current.DisplayTimeZone;
-        DetailsPath = MediaFolders.FullPath(session.Config.RootPath, row.MediaId);
+        DetailsPath = row.Media.SourcePath ?? MediaFolders.FullPath(session.Config.RootPath, row.MediaId);
         DetailsAdded = $"Added {TimeFormatter.Format(row.Media.AddedAtUtc, zone)} by {row.Media.AddedBy}";
         try
         {

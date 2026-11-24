@@ -58,6 +58,40 @@ public sealed class InventoryPropertiesService
         return true;
     }
 
+    /// <summary>
+    /// Allows media from other folders and drives besides the root, or stops allowing them (only while none is in the
+    /// inventory). Audited as <c>ConfigUpdated</c>. Returns false when nothing changed.
+    /// </summary>
+    public bool SetAllowExternalMedia(InventorySession session, bool allow)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        session.EnsureWritable();
+        if (session.Config.AllowExternalMedia == allow)
+        {
+            return false;
+        }
+
+        using (var scope = session.Database.Open())
+        using (var transaction = scope.BeginTransaction())
+        {
+            if (!allow && new MediaRepository(scope).ListActive().Count(m => m.IsExternal) is > 0 and var external)
+            {
+                throw new InvalidOperationException(
+                    $"{external:N0} media in this inventory are outside the root folder. Delete them first to allow media from the root folder only.");
+            }
+
+            new InventoryConfigRepository(scope).UpdateAllowExternalMedia(allow);
+            session.Audit.Write(scope, AuditAction.ConfigUpdated, details: new
+            {
+                Changes = new Dictionary<string, object?> { ["AllowExternalMedia"] = new { Old = !allow, New = allow } },
+            });
+            transaction.Commit();
+        }
+
+        session.ReloadConfig();
+        return true;
+    }
+
     private static MatterInfo Normalize(MatterInfo matter) => new(
         matter.ClientName.Trim(),
         matter.ClientCode.Trim(),

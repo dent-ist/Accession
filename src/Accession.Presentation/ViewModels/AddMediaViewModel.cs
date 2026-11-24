@@ -27,6 +27,7 @@ public sealed partial class AddMediaViewModel : DialogViewModelBase
         _media = media;
         _dialogs = dialogs;
         RootPath = session.Config.RootPath;
+        AllowsExternal = session.Config.AllowExternalMedia;
         IsNewMediaFound = title == "New Media Found";
         foreach (var folder in folders)
         {
@@ -35,6 +36,12 @@ public sealed partial class AddMediaViewModel : DialogViewModelBase
     }
 
     public string RootPath { get; }
+
+    /// <summary>The inventory also takes media from other folders and drives.</summary>
+    public bool AllowsExternal { get; }
+
+    /// <summary>A folder outside the root the user chose: the dialog closed so it can be added as such a media.</summary>
+    public string? ExternalFolder { get; private set; }
 
     public bool CanScan { get; }
 
@@ -57,7 +64,8 @@ public sealed partial class AddMediaViewModel : DialogViewModelBase
     [RelayCommand]
     private void Browse()
     {
-        var folder = _dialogs.PickFolder("Select a media folder (directly inside the root folder)", RootPath);
+        var folder = _dialogs.PickFolder(
+            AllowsExternal ? "Select a media folder in the root, or another folder or drive" : "Select a media folder (directly inside the root folder)", RootPath);
         if (folder is null)
         {
             return;
@@ -67,7 +75,16 @@ public sealed partial class AddMediaViewModel : DialogViewModelBase
         var parent = Path.GetDirectoryName(full);
         if (parent is null || !PathRules.AreSameDirectory(parent, RootPath))
         {
-            _dialogs.ShowWarning("Add media", $"Media folders must be directly inside the root folder:\n\n{RootPath}");
+            if (AllowsExternal)
+            {
+                // Another folder or drive: added on its own, with its Media ID (MED-09).
+                ExternalFolder = full;
+                Close(false);
+                return;
+            }
+
+            _dialogs.ShowWarning("Add media", $"Media folders must be directly inside the root folder:\n\n{RootPath}\n\n" +
+                "To add folders and drives from anywhere (e.g. USB drives), allow media from other folders and drives in Inventory Properties.");
             return;
         }
 

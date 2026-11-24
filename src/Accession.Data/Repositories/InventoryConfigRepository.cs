@@ -28,6 +28,9 @@ public sealed class InventoryConfigRepository(DbScope scope) : RepositoryBase(sc
         Connection.Execute("UPDATE InventoryConfig SET RootPath = @rootPath WHERE ConfigId = 1", new { rootPath }, Transaction);
     }
 
+    public void UpdateAllowExternalMedia(bool allow) =>
+        Connection.Execute("UPDATE InventoryConfig SET AllowExternalMedia = @allow WHERE ConfigId = 1", new { allow }, Transaction);
+
     public void UpdateLastOpened(DateTimeOffset openedAt, string openedBy, string dbPath) =>
         Connection.Execute(
             "UPDATE InventoryConfig SET LastOpenedAtUtc = @openedAt, LastOpenedBy = @openedBy, LastDbPath = @dbPath WHERE ConfigId = 1",

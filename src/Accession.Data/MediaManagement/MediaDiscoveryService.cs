@@ -20,50 +20,62 @@ public sealed record DiscoveryResult(
     public bool HasFindings => NewFolders.Count > 0 || MissingMedia.Count > 0 || NeverScanned.Count > 0 || Incomplete.Count > 0;
 }
 
-/// <summary>Finds new, missing, never-scanned and incomplete media (DSC-01 … DSC-05).</summary>
+/// <summary>Finds new, missing (or not connected), never-scanned and incomplete media (DSC-01 … DSC-05, MED-12).</summary>
 public sealed class MediaDiscoveryService
 {
     /// <summary>
-    /// Lists the root's immediate subfolders and compares them with active media (case-insensitive).
-    /// In a writable session, media whose folder disappeared are marked Missing and restored when it reappears.
+    /// Lists the root's immediate subfolders and compares them with active media (case-insensitive), and checks that
+    /// the media on other drives are connected. In a writable session, media whose folder disappeared (or whose drive
+    /// is not connected) are marked Missing and restored when it is back. When the root cannot be reached, the media
+    /// on other drives are still checked.
     /// </summary>
     public DiscoveryResult Discover(InventorySession session)
     {
         ArgumentNullException.ThrowIfNull(session);
         var root = session.Config.RootPath;
 
-        IReadOnlyList<string> folderNames;
+        IReadOnlyList<string>? folderNames = null; // null: the root cannot be reached
         try
         {
-            if (!Directory.Exists(root))
+            if (Directory.Exists(root))
             {
-                return DiscoveryResult.RootUnavailable;
+                folderNames = MediaFolders.ListCandidateNames(root);
             }
-
-            folderNames = MediaFolders.ListCandidateNames(root);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            folderNames = null;
+        }
+
+        var rootAvailable = folderNames is not null;
+        var onDisk = (folderNames ?? []).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!rootAvailable && !session.Config.AllowExternalMedia)
         {
             return DiscoveryResult.RootUnavailable;
         }
 
-        var onDisk = folderNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
         using var scope = session.Database.Open();
         var media = new MediaRepository(scope);
         var active = media.ListActive();
+
+        // Is the media's folder there? Root media by the listing; media on other drives by their drive (serial).
+        // Null: not known now (the root is offline).
+        var locations = new MediaLocations(root, rootAvailable, active, session.Volumes);
+        bool? Present(Media item) => item.IsExternal ? locations.Folder(item.MediaId)!.IsConnected
+            : rootAvailable ? onDisk.Contains(item.MediaId)
+            : null;
 
         if (!session.IsReadOnly)
         {
             using var transaction = scope.BeginTransaction();
             foreach (var item in active)
             {
-                var exists = onDisk.Contains(item.MediaId);
-                if (!exists && item.Status != MediaStatus.Missing)
+                var present = Present(item);
+                if (present == false && item.Status != MediaStatus.Missing)
                 {
                     media.MarkMissing(item.MediaKey);
                 }
-                else if (exists && item.Status == MediaStatus.Missing)
+                else if (present == true && item.Status == MediaStatus.Missing)
                 {
                     media.RestoreFromMissing(item.MediaKey);
                 }
@@ -75,18 +87,18 @@ public sealed class MediaDiscoveryService
 
         var activeIds = active.Select(m => m.MediaId).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var deletedIds = media.ListDeletedMediaIds();
-        var newFolders = folderNames
+        var newFolders = (folderNames ?? [])
             .Where(name => !activeIds.Contains(name))
             .Select(name => new DiscoveredFolder(name, MediaFolders.FullPath(root, name), deletedIds.Contains(name)))
             .ToList();
 
-        // In a read-only session statuses can't be updated, so derive "missing" from the disk check directly.
-        var missing = active.Where(m => m.Status == MediaStatus.Missing || !onDisk.Contains(m.MediaId)).ToList();
+        // In a read-only session statuses can't be updated, so derive "missing" from the check directly.
+        var missing = active.Where(m => m.Status == MediaStatus.Missing || Present(m) == false).ToList();
         return new DiscoveryResult(
-            true,
+            rootAvailable,
             newFolders,
             missing,
-            active.Where(m => m.Status == MediaStatus.New && onDisk.Contains(m.MediaId)).ToList(),
-            active.Where(m => m.Status == MediaStatus.Incomplete && onDisk.Contains(m.MediaId)).ToList());
+            active.Where(m => m.Status == MediaStatus.New && Present(m) == true).ToList(),
+            active.Where(m => m.Status == MediaStatus.Incomplete && Present(m) == true).ToList());
     }
 }

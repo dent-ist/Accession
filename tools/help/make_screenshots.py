@@ -16,7 +16,7 @@ from playwright.sync_api import sync_playwright
 
 REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "src" / "Accession.App" / "wwwroot" / "help" / "images"
-CHROMIUM = os.environ.get("CHROMIUM", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome")
+CHROMIUM = os.environ.get("CHROMIUM", "/opt/pw-browsers/chromium")
 
 # (output file, preview page, element to capture (selector, containing text) or None for the window, window size)
 SHOTS = [
@@ -29,6 +29,8 @@ SHOTS = [
     ("topbar-read-only.png", "read-only", (".topbar", None), (1360, 900)),
     ("media.png", "media", None, (1360, 900)),
     ("media-detail.png", "media", ("aside.card.detail", None), (1360, 900)),
+    ("media-external.png", "media-external", None, (1360, 900)),
+    ("dialog-external-media.png", "form-external-media", (".modal", None), (1280, 900)),
     ("media-scanning.png", "media-scanning", None, (1360, 900)),
     ("files.png", "files-media-tab", None, (1360, 900)),
     ("files-tree.png", "files-media-tab", (".tree-card", None), (1360, 900)),
@@ -46,8 +48,6 @@ SHOTS = [
     ("dialog-saved-search.png", "form-saved-search", (".modal", None), (1280, 800)),
     ("dialog-copy-batch.png", "form-copy-batch", (".modal", None), (1280, 1200)),
     ("dialog-copy-files.png", "form-copy-files", (".modal", None), (1280, 1000)),
-    ("update-banner.png", "start-update", (".update-banner", None), (1280, 760)),
-    ("dialog-update.png", "form-update", (".modal", None), (1280, 900)),
 ]
 
 

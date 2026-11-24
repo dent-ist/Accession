@@ -41,7 +41,26 @@ public sealed partial class InventoryPropertiesViewModel : DialogViewModelBase
         MatterCode = config.MatterCode;
         Description = config.Description ?? string.Empty;
         MatterUrl = config.MatterUrl ?? string.Empty;
+        AllowExternalMedia = config.AllowExternalMedia;
+        if (host.Session is { } session)
+        {
+            using var scope = session.Database.Open();
+            ExternalMediaCount = new Accession.Data.Repositories.MediaRepository(scope).ListActive().Count(m => m.IsExternal);
+        }
     }
+
+    /// <summary>Media may also come from other folders and drives (USB drives, other shares).</summary>
+    [ObservableProperty]
+    public partial bool AllowExternalMedia { get; set; }
+
+    /// <summary>Media outside the root now: while there are any, the option cannot be turned off.</summary>
+    public int ExternalMediaCount { get; }
+
+    public bool CanChangeExternalMedia => CanEdit && ExternalMediaCount == 0;
+
+    public string ExternalMediaNote => ExternalMediaCount > 0
+        ? $"{ExternalMediaCount:N0} media are outside the root folder, so this stays on while they are in the inventory."
+        : "USB drives, other shares or folders anywhere, besides the subfolders of the root.";
 
     public FieldErrors Errors { get; } = new();
 
@@ -125,12 +144,17 @@ public sealed partial class InventoryPropertiesViewModel : DialogViewModelBase
         try
         {
             _properties.UpdateMatter(session, new MatterInfo(ClientName, ClientCode, MatterName, MatterCode, Description, MatterUrl));
+            _properties.SetAllowExternalMedia(session, AllowExternalMedia);
             _host.Refresh();
             Close(true);
         }
         catch (InventoryValidationException ex)
         {
             Errors.Set(ex.Errors);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _dialogs.ShowWarning("Inventory Properties", ex.Message);
         }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
         {

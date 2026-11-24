@@ -75,6 +75,12 @@ public sealed class MigrationTests : IDisposable
         using var check = _inventory.Database.Open();
         Assert.Equal(2, check.Connection.ExecuteScalar<long>("SELECT COUNT(*) FROM sqlite_master WHERE name IN ('SavedSearch', 'SavedSearchFile')"));
         Assert.Equal("M1", check.Connection.ExecuteScalar<string>("SELECT MediaId FROM Media"));
+
+        // v4: the media stays under the root, and media from other drives are not allowed until turned on.
+        Assert.Equal(4, check.Connection.ExecuteScalar<long>(
+            "SELECT COUNT(*) FROM pragma_table_info('Media') WHERE name IN ('SourcePath', 'VolumeSerial', 'VolumeLabel', 'AddedOnMachine')"));
+        Assert.Null(check.Connection.ExecuteScalar<string?>("SELECT SourcePath FROM Media"));
+        Assert.Equal(0, check.Connection.ExecuteScalar<long>("SELECT AllowExternalMedia FROM InventoryConfig"));
     }
 
     [Fact]

@@ -9,6 +9,7 @@ public static class StatusStyles
         "Completed" => "is-success",
         "Completed with errors" or "Incomplete" => "is-warning",
         "Missing" => "is-danger",
+        "Not connected" => "is-warning",
         "Scanning" or "Hashing" or "Queued" => "is-active",
         "Paused" => "is-paused",
         _ => "is-neutral",

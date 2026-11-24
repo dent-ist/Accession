@@ -104,7 +104,7 @@ public sealed class WebOpenInteraction(DialogCenter dialogs, INativeDialogs nati
             {
                 Kind = DialogKind.Warning,
                 Facts = [new DialogFact("Root folder", rootPath)],
-                Note = "Offline, you can browse and export, but not scan or discover media.",
+                Note = "Offline, you can browse and export, but the media in the root folder cannot be scanned or discovered.",
             });
 
             switch (answer)

@@ -20,15 +20,21 @@ public static class DialogForms
         InventoryPropertiesViewModel vm => Properties(vm, dismiss),
         ChangeRootPathViewModel vm => ChangeRootPath(vm, dismiss),
         AddMediaViewModel vm => AddMedia(vm, dismiss),
+        ExternalMediaViewModel vm => ExternalMedia(vm, dismiss),
         DeleteMediaViewModel vm => DeleteMedia(vm, dismiss),
         SettingsViewModel vm => Settings(vm, dismiss),
         ErrorDialogViewModel vm => Error(vm, dismiss),
         ExportViewModel vm => Export(vm, dismiss),
         SavedSearchViewModel vm => SavedSearch(vm, dismiss),
         CopyViewModel vm => Copy(vm, dismiss),
-        UpdateViewModel vm => Update(vm, dismiss),
         _ => null,
     };
+
+    private const string ExternalMediaOption = "Also allow media from other folders and drives";
+
+    private const string ExternalMediaHint =
+        "USB drives, other shares or folders anywhere, besides the subfolders of the root. A drive is recognised by its serial number, " +
+        "so its drive letter may change. Can be changed later in Inventory Properties.";
 
     private static FormDialog NewInventory(NewInventoryViewModel vm, Action dismiss) => new(
         "New inventory",
@@ -59,6 +65,7 @@ public static class DialogForms
                 {
                     Mono = true, Browse = vm.BrowseSavePathCommand, Error = () => vm.Errors[InventoryFields.SavePath],
                 },
+                new CheckField(ExternalMediaOption, () => vm.AllowExternalMedia, v => vm.AllowExternalMedia = v) { Hint = ExternalMediaHint },
                 new CheckField("Show the media found under the root after creating", () => vm.ShowDiscoveredMedia, v => vm.ShowDiscoveredMedia = v),
             ]),
         ],
@@ -92,6 +99,10 @@ public static class DialogForms
                 [
                     new InfoField("Root folder", () => vm.RootPath) { Mono = true, Wide = true },
                     new InfoField("Root status", () => vm.RootStatus),
+                    new CheckField(ExternalMediaOption, () => vm.AllowExternalMedia, v => vm.AllowExternalMedia = v)
+                    {
+                        Wide = true, Enabled = () => vm.CanChangeExternalMedia, Hint = vm.ExternalMediaNote,
+                    },
                     new InfoField("Lock", () => vm.LockHolder),
                     new InfoField("Inventory file", () => vm.DbPath) { Mono = true, Wide = true },
                     new InfoField("Created", () => $"{vm.CreatedAt} by {vm.CreatedBy}"),
@@ -141,7 +152,9 @@ public static class DialogForms
             [
                 new NoteItem(() => vm.IsNewMediaFound
                     ? "These folders under the root are not in the inventory yet. Tick the ones to add."
-                    : "Tick the media folders to add. Each must be directly inside the root folder."),
+                    : vm.AllowsExternal
+                        ? "Tick the media folders of the root to add, or use “Add another folder…” for a folder or drive anywhere (e.g. a USB drive)."
+                        : "Tick the media folders to add. Each must be directly inside the root folder."),
                 new InfoField("Root folder", () => vm.RootPath) { Mono = true, Wide = true },
                 new ChecklistField("Media folders", () => [.. vm.Candidates.Select(c => new ChecklistEntry(c.MediaId, c.FullPath, () => c.IsChecked, v => c.IsChecked = v, c)
                     {
@@ -164,6 +177,44 @@ public static class DialogForms
     {
         Width = "620px",
         Observed = [vm, vm.Candidates],
+        Dismiss = dismiss,
+    };
+
+    private static FormDialog ExternalMedia(ExternalMediaViewModel vm, Action dismiss) => new(
+        vm.Title,
+        [
+            new FormSection(null,
+            [
+                new NoteItem(() => vm.IsMoving
+                    ? "Choose where this media is now: its drive under another letter, or the folder its files were moved to. Its scan results are kept."
+                    : "A USB drive, another share or any folder, besides the subfolders of the root. Its files are only ever read."),
+                new InfoField("Now at", () => vm.CurrentLocation) { Mono = true, Wide = true, Visible = () => vm.IsMoving },
+                new TextField("Folder or drive", () => vm.Folder, v => vm.Folder = v)
+                {
+                    Mono = true, Wide = true, Browse = vm.BrowseCommand, AutoFocus = true, Placeholder = @"E:\  or  \\server\share\Laptop",
+                    Error = () => vm.FolderError,
+                },
+                new NoteItem(() => vm.FolderInfo) { Tone = "info", Wide = true, Visible = () => vm.FolderInfo.Length > 0 },
+                new NoteItem(() => vm.MatchInfo) { Tone = vm.MatchIsLow ? "warning" : "info", Wide = true, Visible = () => vm.MatchInfo.Length > 0 },
+                new TextField("Media ID", () => vm.MediaId, v => vm.MediaId = v)
+                {
+                    Visible = () => !vm.IsMoving, Error = () => vm.MediaIdError,
+                    Hint = "The drive's label or the folder name; change it if you like. It must be unique: copies of its files go into a folder of this name.",
+                },
+                new CheckField("Start scanning it", () => vm.StartScanning, v => vm.StartScanning = v)
+                {
+                    Visible = () => !vm.IsMoving, Enabled = () => vm.CanScan,
+                    Hint = vm.CanScan ? null : "Scanning is not available (read-only inventory).",
+                },
+            ]),
+        ],
+        [
+            new FormButton("Cancel", vm.CancelCommand),
+            new FormButton(vm.GoText, vm.GoCommand, DialogChoiceStyle.Primary) { IsDefault = true },
+        ])
+    {
+        Width = "640px",
+        Observed = [vm],
         Dismiss = dismiss,
     };
 
@@ -228,14 +279,6 @@ public static class DialogForms
                         Hint = "Empty uses your Documents folder.",
                     },
                     new CheckField("Split exports into one workbook per media", () => vm.SplitExportPerMedia, v => vm.SplitExportPerMedia = v),
-                ]),
-                new FormSection("Updates",
-                [
-                    new CheckField("Check for new versions", () => vm.CheckForUpdates, v => vm.CheckForUpdates = v)
-                    {
-                        Wide = true,
-                        Hint = "Asks GitHub for the latest release at start-up, at most once a day. Nothing about you or your inventories is sent. Turn off on computers without internet.",
-                    },
                 ]),
                 new FormSection("Copying",
                 [
@@ -408,35 +451,6 @@ public static class DialogForms
     };
 
     /// <summary>New version available / Check for updates.</summary>
-    private static FormDialog Update(UpdateViewModel vm, Action dismiss) => new(
-        vm.Title,
-        [
-            new FormSection(null,
-            [
-                new NoteItem(() => vm.Message) { Tone = vm.MessageTone, Wide = true },
-                new InfoField("This version", () => vm.CurrentVersion),
-                new InfoField("Latest version", () => vm.LatestVersion),
-                new InfoField("Published", () => vm.Published) { Visible = () => vm.Published.Length > 0 },
-            ]),
-            new FormSection("What's new",
-            [
-                new NoteItem(() => vm.Notes) { Wide = true, Visible = () => vm.Notes.Length > 0 },
-            ]),
-        ],
-        vm.IsAvailable
-            ?
-            [
-                new FormButton("Skip this version", vm.SkipCommand) { IsSecondary = true },
-                new FormButton("Close", vm.CancelCommand),
-                new FormButton("Download", vm.DownloadCommand, DialogChoiceStyle.Primary) { IsDefault = true },
-            ]
-            : [new FormButton("Close", vm.CancelCommand, DialogChoiceStyle.Primary) { IsDefault = true }])
-    {
-        Width = "600px",
-        Observed = [vm],
-        Dismiss = dismiss,
-    };
-
     private static FormDialog Error(ErrorDialogViewModel vm, Action dismiss) => new(
         vm.Title,
         [

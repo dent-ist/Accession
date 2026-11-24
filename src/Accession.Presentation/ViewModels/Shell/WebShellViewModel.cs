@@ -109,6 +109,10 @@ public sealed partial class WebShellViewModel : ViewModelBase, IShellModel
 
     public bool IsOffline => _host.HasSession && !_host.IsRootAvailable;
 
+    public string OfflineText => _host.Config?.AllowExternalMedia == true
+        ? "Browsing works; its media cannot be scanned until it is back. Media on other drives can still be scanned."
+        : "Browsing works; scanning is disabled until it is back.";
+
     public string Notice => _host.Notice;
 
     // ---- Scan ----

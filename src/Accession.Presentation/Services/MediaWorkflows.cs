@@ -5,6 +5,7 @@ using Accession.Core.Threading;
 using Accession.Data.MediaManagement;
 using Accession.Presentation.Platform;
 using Accession.Presentation.ViewModels;
+using Accession.UI.Components;
 using Microsoft.Extensions.Logging;
 
 namespace Accession.Presentation.Services;
@@ -25,6 +26,7 @@ public enum DiscoveryMode
 public sealed class MediaWorkflows
 {
     private readonly IDesktop _desktop;
+    private readonly ToastService? _toasts;
     private readonly InventoryHost _host;
     private readonly IDialogService _dialogs;
     private readonly BusyTracker _busy;
@@ -43,8 +45,10 @@ public sealed class MediaWorkflows
         ISettingsService settings,
         ScanHost scans,
         ILogger<MediaWorkflows> logger,
-        IDesktop desktop)
+        IDesktop desktop,
+        ToastService? toasts = null)
     {
+        _toasts = toasts;
         _desktop = desktop;
         _scans = scans;
         _host = host;
@@ -56,14 +60,19 @@ public sealed class MediaWorkflows
         _logger = logger;
     }
 
-    public bool CanDiscover => _host.HasSession && _host.IsRootAvailable;
+    /// <summary>Discovery lists the root; with media on other drives it also checks that they are connected.</summary>
+    public bool CanDiscover => _host.HasSession && (_host.IsRootAvailable || AllowsExternal);
 
-    public bool CanAddMedia => _host.CanModify && _host.IsRootAvailable;
+    /// <summary>The inventory also takes media from other folders and drives (USB drives, other shares).</summary>
+    public bool AllowsExternal => _host.Config?.AllowExternalMedia == true;
+
+    /// <summary>Media can be added: from the root while it is reachable, or from anywhere when allowed.</summary>
+    public bool CanAddMedia => _host.CanModify && (_host.IsRootAvailable || AllowsExternal);
 
     /// <summary>Compares the root's subfolders with registered media and reacts according to <paramref name="mode"/>.</summary>
     public async Task RunDiscoveryAsync(DiscoveryMode mode)
     {
-        if (_host.Session is not { } session || !session.IsRootAvailable)
+        if (_host.Session is not { } session || (!session.IsRootAvailable && !AllowsExternal))
         {
             if (mode == DiscoveryMode.Manual)
             {
@@ -90,6 +99,18 @@ public sealed class MediaWorkflows
         }
 
         _host.NotifyMediaChanged();
+        if (!result.RootAvailable && AllowsExternal)
+        {
+            // The media on other drives were still checked.
+            UpdateNotice(result, rootReachable: false);
+            if (mode == DiscoveryMode.Manual)
+            {
+                _dialogs.ShowWarning("Discover media", "The root folder cannot be reached. The media on other drives were checked.");
+            }
+
+            return;
+        }
+
         if (!result.RootAvailable)
         {
             _host.SetNotice("The root folder cannot be reached.");
@@ -127,6 +148,12 @@ public sealed class MediaWorkflows
     {
         if (_host.Session is not { } session || !CanAddMedia)
         {
+            return;
+        }
+
+        if (!session.IsRootAvailable)
+        {
+            ShowExternalDialog(null); // the root is offline: media from other drives can still be added
             return;
         }
 
@@ -234,15 +261,16 @@ public sealed class MediaWorkflows
     public void OpenInExplorer(Media media)
     {
         ArgumentNullException.ThrowIfNull(media);
-        if (_host.Config is not { } config)
+        if (_host.Locations()?.Folder(media.MediaId) is not { } location)
         {
             return;
         }
 
-        var path = MediaFolders.FullPath(config.RootPath, media.MediaId);
-        if (!Directory.Exists(path))
+        if (location.Current is not { } path)
         {
-            _dialogs.ShowWarning("Open in Explorer", $"The folder '{path}' cannot be found.");
+            _dialogs.ShowWarning("Open in Explorer", location.IsExternal
+                ? $"{media.MediaId} is not connected: '{location.Expected}' (or its drive) cannot be found."
+                : $"The folder '{location.Expected}' cannot be found.");
             return;
         }
 
@@ -257,7 +285,14 @@ public sealed class MediaWorkflows
         }
 
         var dialog = new AddMediaViewModel(title, session, folders, _media, _dialogs, _scans.CanScan);
-        if (_dialogs.ShowDialog(dialog) == true)
+        var added = _dialogs.ShowDialog(dialog) == true;
+        if (dialog.ExternalFolder is { } external)
+        {
+            ShowExternalDialog(external); // a folder outside the root was chosen
+            return;
+        }
+
+        if (added)
         {
             _host.NotifyMediaChanged();
             if (dialog.StartScanning && dialog.Added.Count > 0)
@@ -269,7 +304,43 @@ public sealed class MediaWorkflows
         }
     }
 
-    private void UpdateNotice(DiscoveryResult result)
+    /// <summary>Adds a media from another folder or drive (MED-09), optionally queueing its scan.</summary>
+    private void ShowExternalDialog(string? folder)
+    {
+        if (_host.Session is not { } session)
+        {
+            return;
+        }
+
+        var dialog = new ExternalMediaViewModel(session, _media, _dialogs, _scans.CanScan, folder);
+        if (_dialogs.ShowDialog(dialog) == true && dialog.Result is { } media)
+        {
+            _host.NotifyMediaChanged();
+            if (dialog.StartScanning)
+            {
+                _ = _scans.EnqueueAsync([(media, ScanType.Full)]);
+            }
+        }
+    }
+
+    /// <summary>Media screen → Change location: a media outside the root is now at another folder or drive letter (MED-11).</summary>
+    public void ChangeLocation(Media media)
+    {
+        ArgumentNullException.ThrowIfNull(media);
+        if (_host.Session is not { } session || !_host.CanModify || !media.IsExternal)
+        {
+            return;
+        }
+
+        var dialog = new ExternalMediaViewModel(session, _media, _dialogs, canScan: false, moving: media);
+        if (_dialogs.ShowDialog(dialog) == true && dialog.Result is { } moved)
+        {
+            _host.NotifyMediaChanged();
+            _toasts?.Show($"{moved.MediaId} is now read from {moved.SourcePath}", ToastKind.Success);
+        }
+    }
+
+    private void UpdateNotice(DiscoveryResult result, bool rootReachable = true)
     {
         var parts = new List<string>();
         if (_host.Session?.OpenNotice is { Length: > 0 } openNotice)
@@ -287,9 +358,20 @@ public sealed class MediaWorkflows
             parts.Add($"{result.Incomplete.Count:N0} media with an incomplete scan");
         }
 
-        if (result.MissingMedia.Count > 0)
+        if (!rootReachable)
         {
-            parts.Add($"{result.MissingMedia.Count:N0} media folder(s) missing from the root");
+            parts.Add("The root folder cannot be reached");
+        }
+
+        var notConnected = result.MissingMedia.Count(m => m.IsExternal);
+        if (result.MissingMedia.Count - notConnected > 0 && rootReachable)
+        {
+            parts.Add($"{result.MissingMedia.Count - notConnected:N0} media folder(s) missing from the root");
+        }
+
+        if (notConnected > 0)
+        {
+            parts.Add($"{notConnected:N0} media on other drives not connected");
         }
 
         _host.SetNotice(string.Join(" · ", parts));

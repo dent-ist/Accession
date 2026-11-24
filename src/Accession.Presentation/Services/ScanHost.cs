@@ -42,8 +42,13 @@ public sealed class ScanHost : ObservableObject
 
     public ScanCoordinator? Coordinator => _coordinator;
 
-    /// <summary>Scanning is possible: writable session with a reachable root.</summary>
-    public bool CanScan => _coordinator is not null && _host.CanModify && _host.IsRootAvailable;
+    /// <summary>
+    /// Scanning is possible: a writable session with a reachable root, or with media on other drives (they can be
+    /// scanned while the root is offline; each media is checked when it is queued).
+    /// </summary>
+    public bool CanScan => _coordinator is not null && _host.CanModify && CanReachMedia;
+
+    private bool CanReachMedia => _host.IsRootAvailable || _host.Config?.AllowExternalMedia == true;
 
     public bool IsBusy => _coordinator?.IsBusy ?? false;
 
@@ -146,7 +151,7 @@ public sealed class ScanHost : ObservableObject
 
     private void SyncCoordinator()
     {
-        var shouldHave = _host.CanModify && _host.IsRootAvailable;
+        var shouldHave = _host.CanModify && CanReachMedia;
         if (shouldHave && _coordinator is null && _host.Session is { } session)
         {
             var coordinator = new ScanCoordinator(session, _lister, _hasher, BuildOptions, _appInfo, _timeProvider,
