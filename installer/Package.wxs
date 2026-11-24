@@ -5,7 +5,7 @@
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="Accession"
-           Manufacturer="plogramer"
+           Manufacturer="Accession"
            Version="$(var.ProductVersion)"
            UpgradeCode="{37713C26-1FFA-4B48-ACAF-CB5C84DF37BF}"
            Scope="perMachine">
@@ -16,7 +16,6 @@
 
     <Icon Id="AccessionIcon" SourceFile="..\src\Accession.App\Assets\Accession.ico" />
     <Property Id="ARPPRODUCTICON" Value="AccessionIcon" />
-    <Property Id="ARPURLINFOABOUT" Value="https://github.com/plogramer/Accession" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="Accession" />

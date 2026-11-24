@@ -122,11 +122,5 @@ public sealed class ShortcutsTests
 
         public void PageRendered() => inner.PageRendered();
 
-        public string UpdateText => inner.UpdateText;
-        public ICommand ShowUpdateCommand => inner.ShowUpdateCommand;
-        public ICommand DownloadUpdateCommand => inner.DownloadUpdateCommand;
-        public ICommand SkipUpdateCommand => inner.SkipUpdateCommand;
-        public ICommand DismissUpdateCommand => inner.DismissUpdateCommand;
-        public ICommand CheckForUpdatesCommand => inner.CheckForUpdatesCommand;
     }
 }

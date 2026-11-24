@@ -10,10 +10,10 @@ Requirements: [`requirements/001-initial_requirements.md`](requirements/001-init
 
 ## Download
 
-Get the installer, **Accession-&lt;version&gt;-x64.msi**, from the
-[latest release](https://github.com/plogramer/Accession/releases/latest) and run it. It needs Windows 10 (1809) or 11,
-64-bit, and nothing else (.NET is included; WebView2 comes with Windows). The installer is not code-signed yet, so Windows
-may warn about an unknown publisher: choose *More info* → *Run anyway*. The app checks for new versions itself.
+Get the installer, **Accession-&lt;version&gt;-x64.msi**, from this repository's releases (or build it, see
+[Installer and releases](#installer-and-releases)) and run it. It needs Windows 10 (1809) or 11, 64-bit, and nothing else
+(.NET is included; WebView2 comes with Windows). The installer is not code-signed yet, so Windows may warn about an unknown
+publisher: choose *More info* → *Run anyway*.
 
 ## Screenshots
 
@@ -131,8 +131,8 @@ a newer MSI replaces an older installation).
 
 To release a version: set `<Version>` in `Directory.Build.props`, add its section to the version history below, then push
 a tag such as `v0.2` (`git tag v0.2 && git push origin v0.2`), or push a commit to `dev` whose message contains `[release]`
-(the tag is then created from `<Version>`). The *Release* workflow builds the MSI and publishes a GitHub release with it,
-using that version's section as the notes; installed copies of the app then offer the update.
+(the tag is then created from `<Version>`). The *Release* workflow (GitHub Actions) builds the MSI and publishes a release
+with it, using that version's section as the notes.
 
 ## Runtime locations
 

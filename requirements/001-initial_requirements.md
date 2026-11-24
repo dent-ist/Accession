@@ -76,7 +76,7 @@ The application is **read-only toward the evidence**: it must never modify sourc
 | TECH-04 | Database access via `Microsoft.Data.Sqlite`. Recommended helpers: Dapper (queries), CommunityToolkit.Mvvm (MVVM), a streaming Excel writer (MiniExcel or Open XML SDK `OpenXmlWriter`), a WPF chart library (LiveCharts2 or ScottPlot), Serilog (application log). Final library choice is a design decision; all must have licences allowing commercial use. |
 | TECH-05 | Application settings (per Windows user) stored in `%APPDATA%\Accession\settings.json`. Application log in `%LOCALAPPDATA%\Accession\logs\`. |
 | TECH-06 | The application must support paths longer than 260 characters (UNC and local) – long paths are normal in eDiscovery data. |
-| TECH-07 | Solution `Accession.sln` with projects `Accession.App` (WPF UI), `Accession.Core` (services, scanning, models – no UI references), `Accession.Data` (SQLite access) and `Accession.Tests`. Root namespace `Accession`. The repository name stays `minventory`. |
+| TECH-07 | Solution `Accession.sln` with projects `Accession.App` (WPF UI), `Accession.Core` (services, scanning, models – no UI references), `Accession.Data` (SQLite access) and `Accession.Tests`. Root namespace `Accession`. |
 
 ## 5. Functional Requirements
 
@@ -316,7 +316,6 @@ flowchart TD
 | Default export folder | Documents | |
 | Split export per media | Off | |
 | Copy threads | 4 | 1–16. Files copied at the same time by *Copy files* and *Quick Copy* (CPY-06, CPY-10); the manifest stays in copy order. |
-| Check for new versions | On | At start-up (after 5 s, at most once a day) the app reads the latest GitHub release of plogramer/Accession (`/releases/latest`, no sign-in, only the request is sent) and compares its tag (e.g. `v0.2`) with its own version. A newer version shows a bar on the Start and inventory screens (What's new with the release notes, Download opens the release page, Skip this version, hide until next start). *Check for updates…* (⋯ menu, Start screen) asks at once. Failures are silent. |
 | Recent inventories | — | Up to 15 |
 
 ## 6. Non-Functional Requirements

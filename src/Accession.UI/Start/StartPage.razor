@@ -6,12 +6,7 @@
             <span class="brand-mark"><Icon Name="logo" Size="20" /></span>
             <div>
                 <div class="brand-name">@Model.AppName</div>
-                <div class="brand-tag">Version @Model.Version
-                    @if (App is not null)
-                    {
-                        <span> · </span><button class="link-btn small" @onclick="() => Run(App.CheckForUpdatesCommand)">Check for updates</button>
-                    }
-                </div>
+                <div class="brand-tag">Version @Model.Version</div>
             </div>
         </div>
         <div class="start-top-actions">
@@ -20,8 +15,6 @@
             <HelpButton Topic="@HelpTopics.Start" />
         </div>
     </div>
-
-    <UpdateBanner />
 
     <div class="start-body">
         <section class="start-hero">
@@ -97,8 +90,6 @@
 </div>
 
 @code {
-    [CascadingParameter] public IAppModel? App { get; set; }
-
     private string _search = string.Empty;
 
     [Parameter, EditorRequired] public IStartModel Model { get; set; } = default!;

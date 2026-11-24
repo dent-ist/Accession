@@ -199,6 +199,8 @@ public sealed class FilesSavedSearchTests : IDisposable
         {
             await Task.Delay(20, TestContext.Current.CancellationToken);
         }
+
+        await vm.LastLookups; // the media tree and saved searches load on their own
     }
 
     /// <summary>Answers questions and fills in the saved search dialog.</summary>

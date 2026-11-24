@@ -229,12 +229,6 @@ internal sealed partial class FakeApp(object screen) : ObservableObject, IAppMod
     {
     }
 
-    public string UpdateText { get; set; } = string.Empty;
-    public ICommand ShowUpdateCommand { get; } = new RelayCommand(() => { });
-    public ICommand DownloadUpdateCommand { get; } = new RelayCommand(() => { });
-    public ICommand SkipUpdateCommand { get; } = new RelayCommand(() => { });
-    public ICommand DismissUpdateCommand { get; } = new RelayCommand(() => { });
-    public ICommand CheckForUpdatesCommand { get; } = new RelayCommand(() => { });
 }
 
 internal sealed class FakeStart : ObservableObject, IStartModel
