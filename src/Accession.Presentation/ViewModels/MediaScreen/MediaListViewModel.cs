@@ -201,7 +201,7 @@ public sealed partial class MediaListViewModel : ViewModelBase, IMediaModel, IDi
         }
     }
 
-    /// <summary>Points the selected media outside the root at its new folder or drive (MED-10).</summary>
+    /// <summary>Points the selected media outside the root at its new folder or drive (MED-11).</summary>
     [RelayCommand(CanExecute = nameof(CanChangeLocation))]
     private void ChangeLocation()
     {

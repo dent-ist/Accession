@@ -10,7 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 namespace Accession.Presentation.ViewModels;
 
 /// <summary>
-/// Adds a media from another folder or drive (MED-07 … MED-10): the folder, its Media ID (a drive's label by default,
+/// Adds a media from another folder or drive (MED-09 … MED-11): the folder, its Media ID (a drive's label by default,
 /// editable) and what the app recognises the drive by. With <c>moving</c>, points that media at its new place instead.
 /// </summary>
 public sealed partial class ExternalMediaViewModel : DialogViewModelBase

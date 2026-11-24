@@ -20,7 +20,7 @@ public sealed record DiscoveryResult(
     public bool HasFindings => NewFolders.Count > 0 || MissingMedia.Count > 0 || NeverScanned.Count > 0 || Incomplete.Count > 0;
 }
 
-/// <summary>Finds new, missing (or not connected), never-scanned and incomplete media (DSC-01 … DSC-05, MED-11).</summary>
+/// <summary>Finds new, missing (or not connected), never-scanned and incomplete media (DSC-01 … DSC-05, MED-12).</summary>
 public sealed class MediaDiscoveryService
 {
     /// <summary>

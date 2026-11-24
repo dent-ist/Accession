@@ -69,7 +69,8 @@
             <ul>
                 <li><strong>New inventory</strong> (<kbd>Ctrl</kbd> <kbd>N</kbd>) asks for the matter details and the <strong>root folder</strong>:
                     the folder whose subfolders are the media (for example <code>\\evidence01\intake\NW-2026-0142</code> with
-                    <code>123-123_001</code>, <code>123-123_002</code>, … inside).</li>
+                    <code>123-123_001</code>, <code>123-123_002</code>, … inside). Tick <em>Also allow media from other folders and
+                    drives</em> to add USB drives or folders elsewhere too (see <em>Media on other drives</em> under <a href="#media">Media</a>).</li>
                 <li><strong>Open inventory</strong> (<kbd>Ctrl</kbd> <kbd>O</kbd>) opens an inventory file. <strong>Recent inventories</strong>
                     lists the ones you opened before; files that have moved are marked <em>Not found</em>.</li>
                 <li>The settings (gear) and the light/dark theme switch are at the top right.</li>
@@ -116,7 +117,8 @@
         <section id="media">
             <h2>Media</h2>
             <p>The media are the folders directly under the root folder, one per drive, device or delivery (for example
-                <code>123-123_001</code>). This screen lists them with their status and totals.</p>
+                <code>123-123_001</code>), and – if the inventory allows it – folders and drives elsewhere. This screen lists them with
+                their status and totals.</p>
             <figure><img src="images/media.png" alt="Media screen with the list and the details panel" />
                 <figcaption>The media list, with the details of the selected media on the right.</figcaption></figure>
             <ul>
@@ -141,11 +143,36 @@
                         <tr><td>Completed with errors</td><td>Done, but some files could not be read: see <a href="#errors">Errors</a>.</td></tr>
                         <tr><td>Incomplete</td><td>The scan was interrupted; <em>Resume</em> finishes it.</td></tr>
                         <tr><td>Missing</td><td>The folder is no longer under the root.</td></tr>
+                        <tr><td>Not connected</td><td>A media on another drive whose drive (or folder) is not there now.</td></tr>
                     </table>
                 </div>
             </div>
             <figure><img src="images/media-scanning.png" alt="Media screen while a scan runs" />
                 <figcaption>During a scan the top bar shows its progress with Pause, Resume and Cancel.</figcaption></figure>
+
+            <h3>Media on other drives</h3>
+            <p>An inventory can also take media from outside the root: a USB drive as received, another share, any folder. Turn on
+                <em>Also allow media from other folders and drives</em> when creating the inventory, or later in <em>Inventory
+                Properties</em>.</p>
+            <div class="row">
+                <figure class="small"><img src="images/dialog-external-media.png" alt="Add media from another folder or drive" /></figure>
+                <div>
+                    <ul>
+                        <li>In <strong>Add media</strong>, choose <em>Add another folder…</em> and pick a folder or a whole drive outside the
+                            root. Its <strong>Media ID</strong> is the drive's label (or the folder name); change it if you like. It must be
+                            unique, because copies of its files go into a folder of that name.</li>
+                        <li>A drive is recognised by its <strong>serial number</strong>, so it may come back under another letter (E: today,
+                            F: tomorrow). If the letter now holds another device, Accession does not read it.</li>
+                        <li>When the drive is unplugged the media is <strong>Not connected</strong>: browsing, duplicates and export still
+                            work; scanning and copying its files wait until it is back. If its files moved, use <strong>Change
+                            location…</strong> in its details.</li>
+                        <li>Its files are only ever read, as in the root: nothing is copied or saved into its folder. A folder inside the
+                            root or inside another media cannot be added (its files would be counted twice).</li>
+                    </ul>
+                </div>
+            </div>
+            <figure><img src="images/media-external.png" alt="Media screen with media on other drives" />
+                <figcaption>The Location column shows where each media is; a drive that is not plugged in is <em>Not connected</em>.</figcaption></figure>
         </section>
 
         <section id="files">

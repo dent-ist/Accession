@@ -304,7 +304,7 @@ public sealed class MediaWorkflows
         }
     }
 
-    /// <summary>Adds a media from another folder or drive (MED-07), optionally queueing its scan.</summary>
+    /// <summary>Adds a media from another folder or drive (MED-09), optionally queueing its scan.</summary>
     private void ShowExternalDialog(string? folder)
     {
         if (_host.Session is not { } session)
@@ -323,7 +323,7 @@ public sealed class MediaWorkflows
         }
     }
 
-    /// <summary>Media screen → Change location: a media outside the root is now at another folder or drive letter (MED-10).</summary>
+    /// <summary>Media screen → Change location: a media outside the root is now at another folder or drive letter (MED-11).</summary>
     public void ChangeLocation(Media media)
     {
         ArgumentNullException.ThrowIfNull(media);

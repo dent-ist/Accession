@@ -16,7 +16,7 @@ public sealed record ExternalFolder(string Path, string SuggestedMediaId, Volume
 /// <summary>Why a folder cannot be added (or a media moved) there; the message is for the user.</summary>
 public sealed class MediaLocationException(string message) : Exception(message);
 
-/// <summary>Media from other folders and drives besides the root: USB drives, other shares (MED-07 … MED-11).</summary>
+/// <summary>Media from other folders and drives besides the root: USB drives, other shares (MED-08 … MED-12).</summary>
 public sealed partial class MediaService
 {
     /// <summary>Longest Media ID: it becomes a folder name when files are copied out.</summary>

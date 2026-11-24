@@ -55,7 +55,7 @@
                         <Column TItem="MediaRowViewModel" Title="Media ID" SortKey="id" Class="mono strong">@context.MediaId</Column>
                         @if (Model.ShowLocation)
                         {
-                            <Column TItem="MediaRowViewModel" Title="Location" SortKey="location" Class="col-optional">
+                            <Column TItem="MediaRowViewModel" Title="Location" SortKey="location" Class="location-col">
                                 <span class="truncate location-cell @(context.IsExternal ? "mono" : "muted")" title="@context.LocationTitle">
                                     @if (context.IsExternal)
                                     {

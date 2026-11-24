@@ -977,6 +977,11 @@ button:disabled { cursor: default; opacity: .45; }
 .master-detail.has-detail > .card:first-child .table td, .master-detail.has-detail > .card:first-child .table th { padding-left: 10px; padding-right: 10px; }
 .master-detail > .card { margin-bottom: 0; }
 .master-detail.has-detail .col-optional { display: none; }
+
+/* Media screen: where each media is (root, or a folder or drive elsewhere); long paths are cut, the tooltip has it all. */
+.location-col { max-width: 190px; }
+.location-cell { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; vertical-align: middle; }
+.location-cell .icon { flex: none; }
 .card-header-end { margin-left: auto; }
 .bulk-actions { display: flex; gap: 8px; margin-left: 8px; }
 .bulk-actions + .link-btn { margin-left: auto; }

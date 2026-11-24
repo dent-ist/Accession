@@ -110,7 +110,7 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
             using (var manifest = new CsvWriter(request.ManifestPath!, ManifestHeaders))
             using (var bat = new StreamWriter(partial, append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 1 << 16) { NewLine = "\r\n" })
             {
-                WriteBatchHeader(bat, session, request, template, order.Count, totalBytes);
+                WriteBatchHeader(bat, session, request, template, order.Count, totalBytes, locations.ExternalSources.Count > 0);
                 string? lastFolder = null;
                 foreach (var file in Rows(session, order, cancellationToken))
                 {
@@ -582,7 +582,8 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
     /// <summary>A file handed from the producer to a copy worker; <see cref="Index"/> is its place in copy order (0-based).</summary>
     private sealed record CopyWork(long Index, CopySourceRow File, string Source, string? Destination, bool NotConnected);
 
-    private void WriteBatchHeader(StreamWriter bat, InventorySession session, CopyRequest request, CopyCommandTemplate template, long files, long bytes)
+    private void WriteBatchHeader(StreamWriter bat, InventorySession session, CopyRequest request, CopyCommandTemplate template, long files, long bytes,
+        bool otherDrives)
     {
         var now = factory.TimeProvider.GetUtcNow().UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
         var naming = request.Naming.Mode switch
@@ -597,6 +598,12 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
         bat.WriteLine(Rem($"Inventory: {session.Config.ClientCode} {session.Config.MatterCode} ({session.DbPath})"));
         bat.WriteLine(Rem($"{files.ToString("N0", CultureInfo.InvariantCulture)} files, {bytes.ToString("N0", CultureInfo.InvariantCulture)} bytes, to {request.Destination} with {naming}."));
         bat.WriteLine(Rem($"Command: {template.Command}"));
+        if (otherDrives)
+        {
+            // The paths below are where the drives were mounted when the batch was written.
+            bat.WriteLine(Rem("Some media are on other drives (e.g. USB drives): run this on a computer where they have the same drive letters as now."));
+        }
+
         bat.WriteLine(Rem($"Manifest: {request.ManifestPath}"));
         bat.WriteLine(Rem("Files that already exist at the destination are skipped. The source files are only read."));
         bat.WriteLine("chcp 65001 >nul");

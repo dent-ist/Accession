@@ -77,7 +77,7 @@ public sealed partial class AddMediaViewModel : DialogViewModelBase
         {
             if (AllowsExternal)
             {
-                // Another folder or drive: added on its own, with its Media ID (MED-07).
+                // Another folder or drive: added on its own, with its Media ID (MED-09).
                 ExternalFolder = full;
                 Close(false);
                 return;

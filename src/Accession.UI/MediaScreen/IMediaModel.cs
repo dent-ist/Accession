@@ -34,7 +34,7 @@ public interface IMediaModel : INotifyPropertyChanged, IRefreshableScreen
     /// <summary>Some media are outside the root (or may be): the Location column is shown.</summary>
     bool ShowLocation { get; }
 
-    /// <summary>Points the selected media outside the root at its new folder or drive (MED-10).</summary>
+    /// <summary>Points the selected media outside the root at its new folder or drive (MED-11).</summary>
     ICommand ChangeLocationCommand { get; }
 
     ICommand AddMediaCommand { get; }

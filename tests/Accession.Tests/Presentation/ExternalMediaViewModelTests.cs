@@ -88,7 +88,15 @@ public sealed class ExternalMediaViewModelTests : IDisposable
         await vm.GoCommand.ExecuteAsync(null);
         Assert.Equal(copy, vm.Result!.SourcePath);
 
-        var html = await FormDialogTests.Render(DialogForms.Build(Create(_volumes.Mount("F", "77C0-1E2F", "CLIENT_USB02")), () => { })!, "form-external-media");
+        var shown = Create(_volumes.Mount("F", "77C0-1E2F", "CLIENT_USB02"));
+        Assert.Equal("CLIENT_USB02", shown.MediaId);
+        Assert.Contains("serial 77C0-1E2F", shown.FolderInfo, StringComparison.Ordinal);
+
+        // For the help picture, as on Windows: the drive F:\ (the test's drive is a temp folder).
+        shown.Folder = @"F:\";
+        (shown.FolderError, shown.FolderInfo, shown.MediaId) = (string.Empty,
+            "The whole drive F:\\, label “CLIENT_USB02”, serial 77C0-1E2F. It is recognised by its serial if its drive letter changes.", "CLIENT_USB02");
+        var html = await FormDialogTests.Render(DialogForms.Build(shown, () => { })!, "form-external-media");
         Assert.Contains("Add media from another folder or drive", html);
         Assert.Contains("CLIENT_USB02", html);
         Assert.Contains("Start scanning it", html);

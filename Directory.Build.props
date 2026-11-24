@@ -11,7 +11,7 @@
 
     <Product>Accession</Product>
     <Description>Inventory, hash, and report every media you receive.</Description>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Copyright>Copyright © 2026</Copyright>
   </PropertyGroup>
 </Project>

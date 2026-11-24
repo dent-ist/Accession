@@ -32,6 +32,20 @@ or collect them in saved searches.
 
 The version is set in [`Directory.Build.props`](Directory.Build.props) (`<Version>`) and shown in the app. Newest first.
 
+### 0.2 – not released yet
+
+Inventory schema version 4 (older inventories are upgraded when opened, with a backup).
+
+- **Media from other folders and drives** – an inventory can also take USB drives, other shares or any folder, besides the
+  subfolders of the root (an option when creating it, or in Inventory Properties). The Media ID defaults to the drive's
+  label and can be changed. A drive is recognised by its serial number, so it can come back under another drive letter,
+  and a different device at the same letter is never read. Unplugged drives show as *Not connected* and can still be
+  browsed and exported; *Change location…* follows files that moved. Nothing is ever written to these drives.
+- **Files** – *Quick Copy* (right-click) copies files flat into a folder with their original names; one *Add to saved
+  search* list and one *Remove* button (ticked files, or all results when none are ticked).
+- **Faster and smoother** – opening a large inventory no longer freezes the window, and the busy spinner keeps turning.
+- **Installer** – a Windows installer (MSI) for each release.
+
 ### 0.1 – 2026-09-28
 
 First version. Inventory schema version 3.
