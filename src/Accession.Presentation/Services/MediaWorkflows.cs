@@ -60,7 +60,8 @@ public sealed class MediaWorkflows
         _logger = logger;
     }
 
-    public bool CanDiscover => _host.HasSession && _host.IsRootAvailable;
+    /// <summary>Discovery lists the root; with media on other drives it also checks that they are connected.</summary>
+    public bool CanDiscover => _host.HasSession && (_host.IsRootAvailable || AllowsExternal);
 
     /// <summary>The inventory also takes media from other folders and drives (USB drives, other shares).</summary>
     public bool AllowsExternal => _host.Config?.AllowExternalMedia == true;
@@ -71,7 +72,7 @@ public sealed class MediaWorkflows
     /// <summary>Compares the root's subfolders with registered media and reacts according to <paramref name="mode"/>.</summary>
     public async Task RunDiscoveryAsync(DiscoveryMode mode)
     {
-        if (_host.Session is not { } session || !session.IsRootAvailable)
+        if (_host.Session is not { } session || (!session.IsRootAvailable && !AllowsExternal))
         {
             if (mode == DiscoveryMode.Manual)
             {
@@ -98,6 +99,18 @@ public sealed class MediaWorkflows
         }
 
         _host.NotifyMediaChanged();
+        if (!result.RootAvailable && AllowsExternal)
+        {
+            // The media on other drives were still checked.
+            UpdateNotice(result, rootReachable: false);
+            if (mode == DiscoveryMode.Manual)
+            {
+                _dialogs.ShowWarning("Discover media", "The root folder cannot be reached. The media on other drives were checked.");
+            }
+
+            return;
+        }
+
         if (!result.RootAvailable)
         {
             _host.SetNotice("The root folder cannot be reached.");
@@ -327,7 +340,7 @@ public sealed class MediaWorkflows
         }
     }
 
-    private void UpdateNotice(DiscoveryResult result)
+    private void UpdateNotice(DiscoveryResult result, bool rootReachable = true)
     {
         var parts = new List<string>();
         if (_host.Session?.OpenNotice is { Length: > 0 } openNotice)
@@ -345,9 +358,20 @@ public sealed class MediaWorkflows
             parts.Add($"{result.Incomplete.Count:N0} media with an incomplete scan");
         }
 
-        if (result.MissingMedia.Count > 0)
+        if (!rootReachable)
         {
-            parts.Add($"{result.MissingMedia.Count:N0} media folder(s) missing from the root");
+            parts.Add("The root folder cannot be reached");
+        }
+
+        var notConnected = result.MissingMedia.Count(m => m.IsExternal);
+        if (result.MissingMedia.Count - notConnected > 0 && rootReachable)
+        {
+            parts.Add($"{result.MissingMedia.Count - notConnected:N0} media folder(s) missing from the root");
+        }
+
+        if (notConnected > 0)
+        {
+            parts.Add($"{notConnected:N0} media on other drives not connected");
         }
 
         _host.SetNotice(string.Join(" · ", parts));

@@ -31,7 +31,7 @@ public sealed class ScanContext
     /// True when the media is a whole drive (<c>E:\</c>): its top level has <c>$RECYCLE.BIN</c> and <c>System Volume
     /// Information</c>, which are skipped there as at the root (DSC-05).
     /// </summary>
-    public bool IsDriveRoot => string.Equals(Path.GetPathRoot(MediaFolder), MediaFolder, StringComparison.OrdinalIgnoreCase);
+    public bool IsDriveRoot { get; init; }
 
     public ErrorCommand Error(string relativePath, ScanItemType itemType, ScanErrorType type, ScanErrorSeverity severity, int? code, string message) =>
         new(new ScanErrorEntry

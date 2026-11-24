@@ -76,7 +76,7 @@ public sealed partial class ChangeRootPathViewModel : DialogViewModelBase
             _host.Refresh();
             Close(true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or Microsoft.Data.Sqlite.SqliteException)
         {
             _dialogs.ShowError("Change root path", $"The root path could not be changed.\n\n{ex.Message}", ex);
         }
@@ -85,7 +85,7 @@ public sealed partial class ChangeRootPathViewModel : DialogViewModelBase
     [RelayCommand]
     private void Cancel() => Close(false);
 
-    private bool CanApply() => _preview is { Exists: true };
+    private bool CanApply() => _preview is { Exists: true, Conflict: null };
 
     private void RefreshPreview()
     {
@@ -103,8 +103,9 @@ public sealed partial class ChangeRootPathViewModel : DialogViewModelBase
                 MediaNotFound = _preview.MediaNotFound;
                 PreviewText = !_preview.Exists
                     ? "The folder does not exist or cannot be reached."
+                    : _preview.Conflict is { } conflict ? conflict
                     : _preview.MediaNotFound.Count == 0
-                        ? "All registered media were found under this folder."
+                        ? "All media of the root folder were found under this folder."
                         : $"{_preview.MediaNotFound.Count:N0} registered media were not found under this folder:";
             }
             catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException)

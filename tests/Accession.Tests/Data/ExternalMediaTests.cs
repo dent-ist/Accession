@@ -179,4 +179,79 @@ public sealed class ExternalMediaTests : IDisposable
         Assert.Equal((1, 2), MediaService.CompareTopLevel(_test.Session, added.MediaKey, usb)); // Custodian is there, readme.txt is not
         Assert.Equal((0, 2), MediaService.CompareTopLevel(_test.Session, added.MediaKey, _test.Root));
     }
+
+    [Fact]
+    public void Discovery_marks_an_unplugged_drive_not_connected_and_back_when_it_is_plugged_in_anywhere()
+    {
+        var added = _media.AddExternal(_test.Session, Usb(), "USB01");
+        var discovery = new MediaDiscoveryService();
+
+        _volumes.Unmount("E");
+        var result = discovery.Discover(_test.Session);
+        Assert.Equal(["USB01"], result.MissingMedia.Select(m => m.MediaId));
+        Assert.Equal(MediaStatus.Missing, Get(added.MediaKey).Status);
+
+        Usb("G"); // the same drive (serial), now G:
+        result = discovery.Discover(_test.Session);
+        Assert.Empty(result.MissingMedia);
+        Assert.Equal(MediaStatus.New, Get(added.MediaKey).Status);
+        Assert.Equal(["USB01"], result.NeverScanned.Select(m => m.MediaId));
+    }
+
+    [Fact]
+    public void With_the_root_offline_the_media_on_other_drives_are_still_checked()
+    {
+        _test.CreateFolders("M1");
+        _media.Add(_test.Session, [Path.Combine(_test.Root, "M1")]);
+        var usb = _media.AddExternal(_test.Session, Usb(), "USB01");
+        Directory.Move(_test.Root, _test.Root + "-away");
+        _test.Session.IsRootAvailable = false;
+        _volumes.Unmount("E");
+
+        var result = new MediaDiscoveryService().Discover(_test.Session);
+
+        Assert.False(result.RootAvailable);
+        Assert.Equal(["USB01"], result.MissingMedia.Select(m => m.MediaId)); // the root's media: not known, so left as they are
+        Assert.Equal(MediaStatus.Missing, Get(usb.MediaKey).Status);
+    }
+
+    [Fact]
+    public void Copies_never_go_into_a_media_drive_and_fail_clearly_while_it_is_unplugged()
+    {
+        var usb = Usb();
+        var added = _media.AddExternal(_test.Session, usb, "USB01");
+        File.WriteAllText(Path.Combine(usb, "Custodian", "Mail", "a.msg"), "message");
+        using (var scope = _test.Session.Database.Open())
+        {
+            var top = ScanRows.AddFolder(scope, added.MediaKey, @"\USB01\");
+            var mail = ScanRows.AddFolder(scope, added.MediaKey, @"\USB01\Custodian\Mail\", top);
+            ScanRows.AddFile(scope, added.MediaKey, mail, "a.msg", 7);
+        }
+
+        var copy = new Accession.Data.Copying.CopyService(_test.Factory, Microsoft.Extensions.Logging.Abstractions.NullLogger<Accession.Data.Copying.CopyService>.Instance);
+        var naming = new Accession.Core.Copying.CopyNaming { Mode = Accession.Core.Copying.CopyNamingMode.OriginalName };
+        var intoDrive = new Accession.Data.Copying.CopyRequest(Accession.Data.Browsing.FileFilter.None, Path.Combine(usb, "out"), naming, null);
+        Assert.Contains("in a media's folder", Accession.Data.Copying.CopyService.Validate(_test.Session, intoDrive, 1), StringComparison.Ordinal);
+
+        _volumes.Unmount("E");
+        var request = new Accession.Data.Copying.CopyRequest(Accession.Data.Browsing.FileFilter.None, _test.Temp.Combine("out"), naming,
+            _test.Temp.Combine("manifest.csv"));
+        var result = copy.CopyFiles(_test.Session, request, new Accession.Core.Copying.CopyFileOptions(PreserveMetadata: false));
+
+        Assert.Equal((0L, 1L), (result.Copied, result.Failed));
+        Assert.Contains("The media USB01 is not connected", File.ReadAllText(result.ManifestPath!), StringComparison.Ordinal);
+
+        _volumes.Mount("F", "1A2B-3C4D", "CLIENT_USB01"); // back, as F: (the files were on E:'s folder, which is F: now)
+        Directory.CreateDirectory(Path.Combine(_test.Temp.Combine("drives", "F"), "Custodian", "Mail"));
+        File.WriteAllText(Path.Combine(_test.Temp.Combine("drives", "F"), "Custodian", "Mail", "a.msg"), "message");
+        var again = copy.CopyFiles(_test.Session, request with { Destination = _test.Temp.Combine("out2") },
+            new Accession.Core.Copying.CopyFileOptions(PreserveMetadata: false));
+        Assert.Equal(1L, again.Copied);
+    }
+
+    private Media Get(long key)
+    {
+        using var scope = _test.Session.Database.Open();
+        return new MediaRepository(scope).Get(key)!;
+    }
 }

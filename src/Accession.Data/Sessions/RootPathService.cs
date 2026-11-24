@@ -6,7 +6,8 @@ namespace Accession.Data.Sessions;
 
 /// <summary>Result of checking a candidate root folder before relocating (INV-09).</summary>
 /// <param name="MediaNotFound">Registered media whose folder does not exist under the new root.</param>
-public sealed record RootPathPreview(string NewRootPath, bool Exists, IReadOnlyList<string> MediaNotFound);
+/// <param name="Conflict">Why the folder cannot be the root (it overlaps a media on another drive); null when it can.</param>
+public sealed record RootPathPreview(string NewRootPath, bool Exists, IReadOnlyList<string> MediaNotFound, string? Conflict = null);
 
 /// <summary>Changes the inventory root folder after the inventory and media were moved (requirement INV-09).</summary>
 public sealed class RootPathService
@@ -24,11 +25,19 @@ public sealed class RootPathService
         }
 
         using var scope = session.Database.Open();
-        var missing = new MediaRepository(scope).ListActive()
-            .Where(m => !Directory.Exists(Path.Combine(normalized, m.MediaId)))
+        var active = new MediaRepository(scope).ListActive();
+
+        // Media on other drives are not in the root: only the root's media are looked for, and the new root must not
+        // overlap one of the others (its files would be counted twice).
+        var missing = active
+            .Where(m => !m.IsExternal && !Directory.Exists(Path.Combine(normalized, m.MediaId)))
             .Select(m => m.MediaId)
             .ToList();
-        return new RootPathPreview(normalized, true, missing);
+        var overlapping = active.FirstOrDefault(m => m.IsExternal
+            && (Core.Copying.CopyPaths.IsSameOrInside(normalized, m.SourcePath!) || Core.Copying.CopyPaths.IsSameOrInside(m.SourcePath!, normalized)));
+        var conflict = overlapping is null ? null
+            : $"This folder overlaps the media '{overlapping.MediaId}' ({overlapping.SourcePath}), which is not in the root: its files would be counted twice.";
+        return new RootPathPreview(normalized, true, missing, conflict);
     }
 
     /// <summary>Updates <c>InventoryConfig.RootPath</c> and audits <c>RootPathChanged</c> with old/new path.</summary>
@@ -41,6 +50,11 @@ public sealed class RootPathService
         if (!preview.Exists)
         {
             throw new DirectoryNotFoundException($"The folder '{preview.NewRootPath}' does not exist or cannot be reached.");
+        }
+
+        if (preview.Conflict is { } conflict)
+        {
+            throw new InvalidOperationException(conflict);
         }
 
         var oldPath = session.Config.RootPath;

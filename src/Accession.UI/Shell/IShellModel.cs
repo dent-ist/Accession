@@ -29,6 +29,9 @@ public interface IShellModel : INotifyPropertyChanged
     string ReadOnlyTooltip { get; }
 
     bool IsOffline { get; }
+
+    /// <summary>What still works while the root is offline (media on other drives can still be scanned).</summary>
+    string OfflineText { get; }
     string Notice { get; }
 
     // Scan

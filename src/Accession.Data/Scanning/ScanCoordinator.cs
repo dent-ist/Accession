@@ -551,6 +551,7 @@ public sealed class ScanCoordinator : IAsyncDisposable
             MediaId = item.MediaId,
             ScanId = scanId,
             MediaFolder = mediaFolder,
+            IsDriveRoot = location?.IsExternal == true && _session.Volumes.PathOnDrive(mediaFolder).Length == 0,
             Writer = writer,
             Ids = ids,
             Counters = counters,

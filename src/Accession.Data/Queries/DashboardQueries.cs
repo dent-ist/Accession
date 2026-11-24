@@ -35,6 +35,13 @@ public sealed class DashboardMediaRow
     public long ErrorCount { get; init; }
     public int ScanCount { get; init; }
     public DateTimeOffset? LastScanCompletedUtc { get; init; }
+
+    /// <summary>The folder or drive of a media outside the root; null for a media in the root.</summary>
+    public string? SourcePath { get; init; }
+
+    public string? VolumeLabel { get; init; }
+
+    public string? VolumeSerial { get; init; }
 }
 
 public sealed class CategoryTotal

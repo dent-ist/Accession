@@ -181,6 +181,7 @@ internal sealed partial class FakeShell : ObservableObject, IShellModel
     public string ReadOnlyTooltip => @"LITSUPPORT\john.roe has this inventory open for editing on LIT-PC12.";
     public bool IsReadOnly { get; }
     public bool IsOffline => false;
+    public string OfflineText => "Browsing works; scanning is disabled until it is back.";
     public string Notice => string.Empty;
     public string ScanStatus => IsScanActive ? "123-123_003 · Hashing 41,210 of 96,020 files · 212 MB/s" : string.Empty;
     public bool IsScanActive { get; }
