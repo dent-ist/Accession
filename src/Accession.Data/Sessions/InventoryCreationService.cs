@@ -35,6 +35,7 @@ public sealed class InventoryCreationService
         {
             InventoryGuid = Guid.NewGuid(),
             RootPath = PathRules.NormalizeDirectory(request.RootFolder),
+            AllowExternalMedia = request.AllowExternalMedia,
             ClientName = request.ClientName.Trim(),
             ClientCode = request.ClientCode.Trim(),
             MatterName = request.MatterName.Trim(),
@@ -60,6 +61,7 @@ public sealed class InventoryCreationService
             config.MatterName,
             config.MatterCode,
             config.RootPath,
+            config.AllowExternalMedia,
             DbPath = path,
             AppVersion = _appInfo.Version,
         });

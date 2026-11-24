@@ -5,6 +5,7 @@ using Accession.Core.Threading;
 using Accession.Data.MediaManagement;
 using Accession.Presentation.Platform;
 using Accession.Presentation.ViewModels;
+using Accession.UI.Components;
 using Microsoft.Extensions.Logging;
 
 namespace Accession.Presentation.Services;
@@ -25,6 +26,7 @@ public enum DiscoveryMode
 public sealed class MediaWorkflows
 {
     private readonly IDesktop _desktop;
+    private readonly ToastService? _toasts;
     private readonly InventoryHost _host;
     private readonly IDialogService _dialogs;
     private readonly BusyTracker _busy;
@@ -43,8 +45,10 @@ public sealed class MediaWorkflows
         ISettingsService settings,
         ScanHost scans,
         ILogger<MediaWorkflows> logger,
-        IDesktop desktop)
+        IDesktop desktop,
+        ToastService? toasts = null)
     {
+        _toasts = toasts;
         _desktop = desktop;
         _scans = scans;
         _host = host;
@@ -58,7 +62,11 @@ public sealed class MediaWorkflows
 
     public bool CanDiscover => _host.HasSession && _host.IsRootAvailable;
 
-    public bool CanAddMedia => _host.CanModify && _host.IsRootAvailable;
+    /// <summary>The inventory also takes media from other folders and drives (USB drives, other shares).</summary>
+    public bool AllowsExternal => _host.Config?.AllowExternalMedia == true;
+
+    /// <summary>Media can be added: from the root while it is reachable, or from anywhere when allowed.</summary>
+    public bool CanAddMedia => _host.CanModify && (_host.IsRootAvailable || AllowsExternal);
 
     /// <summary>Compares the root's subfolders with registered media and reacts according to <paramref name="mode"/>.</summary>
     public async Task RunDiscoveryAsync(DiscoveryMode mode)
@@ -127,6 +135,12 @@ public sealed class MediaWorkflows
     {
         if (_host.Session is not { } session || !CanAddMedia)
         {
+            return;
+        }
+
+        if (!session.IsRootAvailable)
+        {
+            ShowExternalDialog(null); // the root is offline: media from other drives can still be added
             return;
         }
 
@@ -258,7 +272,14 @@ public sealed class MediaWorkflows
         }
 
         var dialog = new AddMediaViewModel(title, session, folders, _media, _dialogs, _scans.CanScan);
-        if (_dialogs.ShowDialog(dialog) == true)
+        var added = _dialogs.ShowDialog(dialog) == true;
+        if (dialog.ExternalFolder is { } external)
+        {
+            ShowExternalDialog(external); // a folder outside the root was chosen
+            return;
+        }
+
+        if (added)
         {
             _host.NotifyMediaChanged();
             if (dialog.StartScanning && dialog.Added.Count > 0)
@@ -267,6 +288,42 @@ public sealed class MediaWorkflows
             }
 
             _ = RunDiscoveryAsync(DiscoveryMode.Silent);
+        }
+    }
+
+    /// <summary>Adds a media from another folder or drive (MED-07), optionally queueing its scan.</summary>
+    private void ShowExternalDialog(string? folder)
+    {
+        if (_host.Session is not { } session)
+        {
+            return;
+        }
+
+        var dialog = new ExternalMediaViewModel(session, _media, _dialogs, _scans.CanScan, folder);
+        if (_dialogs.ShowDialog(dialog) == true && dialog.Result is { } media)
+        {
+            _host.NotifyMediaChanged();
+            if (dialog.StartScanning)
+            {
+                _ = _scans.EnqueueAsync([(media, ScanType.Full)]);
+            }
+        }
+    }
+
+    /// <summary>Media screen → Change location: a media outside the root is now at another folder or drive letter (MED-10).</summary>
+    public void ChangeLocation(Media media)
+    {
+        ArgumentNullException.ThrowIfNull(media);
+        if (_host.Session is not { } session || !_host.CanModify || !media.IsExternal)
+        {
+            return;
+        }
+
+        var dialog = new ExternalMediaViewModel(session, _media, _dialogs, canScan: false, moving: media);
+        if (_dialogs.ShowDialog(dialog) == true && dialog.Result is { } moved)
+        {
+            _host.NotifyMediaChanged();
+            _toasts?.Show($"{moved.MediaId} is now read from {moved.SourcePath}", ToastKind.Success);
         }
     }
 

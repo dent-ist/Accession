@@ -22,7 +22,11 @@ public sealed record CreateInventoryRequest(
     string? Description,
     string? MatterUrl,
     string RootFolder,
-    string SavePath);
+    string SavePath)
+{
+    /// <summary>Media may also come from other folders and drives (USB drives, other shares), not only the root.</summary>
+    public bool AllowExternalMedia { get; init; }
+}
 
 /// <summary>Validation rules for inventory creation and matter edits (INV-01, INV-03, INV-07).</summary>
 public static class InventoryValidation

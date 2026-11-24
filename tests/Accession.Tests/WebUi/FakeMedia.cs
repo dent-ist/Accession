@@ -11,9 +11,10 @@ namespace Accession.Tests.WebUi;
 /// <summary>Sample Media screen data.</summary>
 internal sealed partial class FakeMedia : ObservableObject, IMediaModel
 {
-    public FakeMedia(bool empty = false, bool scanning = false, bool readOnly = false)
+    public FakeMedia(bool empty = false, bool scanning = false, bool readOnly = false, bool external = false)
     {
         IsReadOnly = readOnly;
+        ShowLocation = external;
         if (empty)
         {
             return;
@@ -24,6 +25,11 @@ internal sealed partial class FakeMedia : ObservableObject, IMediaModel
         Add(3, "123-123_003", scanning ? MediaStatus.Hashing : MediaStatus.Completed, 96_020, 310_200_000_000, scanning ? 41_210 : 96_020, 0, 1);
         Add(4, "123-124_001", MediaStatus.Missing, 31_774, 54_900_000_000, 31_774, 2, 1);
         Add(5, "123-125_001", MediaStatus.New, 0, 0, 0, 0, 0);
+        if (external)
+        {
+            Add(6, "CLIENT_USB01", MediaStatus.Completed, 8_412, 61_300_000_000, 8_412, 0, 1, @"E:\", "1A2B-3C4D", "CLIENT_USB01");
+            Add(7, "LAPTOP_JDOE", MediaStatus.Missing, 52_007, 120_400_000_000, 52_007, 0, 1, @"F:\Collections\JDoe", "77C0-1E2F", "COLLECT02");
+        }
 
         if (scanning)
         {
@@ -57,6 +63,8 @@ internal sealed partial class FakeMedia : ObservableObject, IMediaModel
     public string LiveProgressText { get; } = string.Empty;
     public double? LiveProgressRatio { get; }
     public bool IsReadOnly { get; }
+    public bool ShowLocation { get; }
+    public ICommand ChangeLocationCommand { get; } = new RelayCommand(() => { });
     public ICommand AddMediaCommand { get; } = new RelayCommand(() => { });
     public ICommand DiscoverCommand { get; } = new RelayCommand(() => { });
     public ICommand DeleteCommand { get; } = new RelayCommand(() => { });
@@ -69,11 +77,16 @@ internal sealed partial class FakeMedia : ObservableObject, IMediaModel
     public ICommand ExportCommand { get; } = new RelayCommand(() => { });
     public ICommand RefreshCommand { get; } = new RelayCommand(() => { });
 
-    private void Add(long key, string id, MediaStatus status, long files, long bytes, long hashed, long errors, int scans) =>
+    private void Add(long key, string id, MediaStatus status, long files, long bytes, long hashed, long errors, int scans,
+        string? source = null, string? serial = null, string? label = null) =>
         Rows.Add(new MediaRowViewModel(new Media
         {
             MediaKey = key,
             MediaId = id,
+            SourcePath = source,
+            VolumeSerial = serial,
+            VolumeLabel = label,
+            AddedOnMachine = source is null ? null : "LIT-WS-011",
             Status = status,
             FileCount = files,
             FolderCount = files / 90,

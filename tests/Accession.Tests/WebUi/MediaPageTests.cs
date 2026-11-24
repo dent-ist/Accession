@@ -34,6 +34,27 @@ public sealed class MediaPageTests
     }
 
     [Fact]
+    public async Task Media_from_other_drives_show_their_location_and_whether_they_are_connected()
+    {
+        var media = new FakeMedia(external: true);
+        media.SelectedRow = media.Rows.First(r => r.MediaId == "LAPTOP_JDOE");
+
+        var html = await RenderInShell(media, "media-external");
+
+        Assert.Contains(">Location<", html);
+        Assert.Contains("Root folder", html);
+        Assert.Contains(@"F:\Collections\JDoe", html);
+        Assert.Contains("Not connected", html);
+        Assert.Contains("COLLECT02", html);
+        Assert.Contains("serial 77C0-1E2F (recognised under any drive letter)", html);
+        Assert.Contains("Change location", html);
+        Assert.Contains("Connect the drive (any drive letter)", html);
+        Assert.DoesNotContain("was not found under the root", html);
+
+        Assert.DoesNotContain(">Location<", await RenderInShell(new FakeMedia())); // not shown for inventories without them
+    }
+
+    [Fact]
     public async Task Running_scan_shows_live_progress()
     {
         var html = await RenderInShell(new FakeMedia(scanning: true), "media-scanning");

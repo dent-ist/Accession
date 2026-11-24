@@ -11,7 +11,7 @@ public sealed record RejectedFolder(string Path, string Reason);
 public sealed record AddMediaResult(IReadOnlyList<Media> Added, IReadOnlyList<RejectedFolder> Rejected);
 
 /// <summary>Adds and deletes media (requirements 5.4).</summary>
-public sealed class MediaService
+public sealed partial class MediaService
 {
     /// <summary>Statuses during which a media cannot be deleted (MED-05).</summary>
     public static readonly IReadOnlySet<MediaStatus> BusyStatuses =
