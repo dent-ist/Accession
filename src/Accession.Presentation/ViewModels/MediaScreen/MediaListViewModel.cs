@@ -305,7 +305,7 @@ public sealed partial class MediaListViewModel : ViewModelBase, IMediaModel, IDi
         }
 
         var zone = _settings.Current.DisplayTimeZone;
-        DetailsPath = MediaFolders.FullPath(session.Config.RootPath, row.MediaId);
+        DetailsPath = row.Media.SourcePath ?? MediaFolders.FullPath(session.Config.RootPath, row.MediaId);
         DetailsAdded = $"Added {TimeFormatter.Format(row.Media.AddedAtUtc, zone)} by {row.Media.AddedBy}";
         try
         {

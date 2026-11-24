@@ -1,3 +1,4 @@
+using Accession.Core.Inventories;
 using Accession.Core.Model;
 using Accession.Data.Audit;
 using Accession.Data.Locking;
@@ -45,8 +46,11 @@ public sealed class InventorySession : IDisposable
     /// <summary>True when opened read-only or after the lock was taken over by someone else.</summary>
     public bool IsReadOnly { get; private set; }
 
-    /// <summary>False when the root folder could not be reached at open ("offline"): scanning is disabled.</summary>
+    /// <summary>False when the root folder could not be reached at open ("offline"): its media cannot be scanned.</summary>
     public bool IsRootAvailable { get; set; } = true;
+
+    /// <summary>Recognises the drives of media outside the root (tests replace it).</summary>
+    public IVolumeProbe Volumes { get; set; } = SystemVolumeProbe.Instance;
 
     /// <summary>Snapshot of the <c>InventoryConfig</c> row; call <see cref="ReloadConfig"/> after changes.</summary>
     public InventoryConfig Config { get; private set; }

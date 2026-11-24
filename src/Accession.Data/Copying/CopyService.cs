@@ -6,6 +6,7 @@ using Accession.Core.Model;
 using Accession.Core.Time;
 using Accession.Data.Audit;
 using Accession.Data.Browsing;
+using Accession.Data.MediaManagement;
 using Accession.Data.Schema;
 using Accession.Data.Sessions;
 using Dapper;
@@ -41,7 +42,8 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(request);
         var root = session.Config.RootPath;
-        if (CopyPaths.ValidateDestination(request.Destination, root) is { } destinationError)
+        var media = MediaFolders(session);
+        if (CopyPaths.ValidateDestination(request.Destination, root, media) is { } destinationError)
         {
             return destinationError;
         }
@@ -51,20 +53,29 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
             return namingError;
         }
 
-        return request.ManifestPath is null ? null : ValidateOutput(request.ManifestPath, root, "manifest");
+        return request.ManifestPath is null ? null : ValidateOutput(request.ManifestPath, root, "manifest", media);
     }
 
+    /// <summary>
+    /// Folders of the media outside the root, where they are recorded and where they are now: like the root, nothing
+    /// is ever written into them.
+    /// </summary>
+    public static IReadOnlyList<string> MediaFolders(InventorySession session) => MediaLocations.Load(session).ExternalFolders();
+
     /// <summary>Why a file cannot be written at <paramref name="path"/>; null when it can.</summary>
-    public static string? ValidateOutput(string? path, string rootPath, string what)
+    public static string? ValidateOutput(string? path, string rootPath, string what, IEnumerable<string>? mediaFolders = null)
     {
         if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path))
         {
             return $"Choose where to save the {what}.";
         }
 
-        return !string.IsNullOrWhiteSpace(rootPath) && CopyPaths.IsSameOrInside(path, rootPath)
-            ? $"The {what} cannot be saved under the root folder."
-            : null;
+        if (!string.IsNullOrWhiteSpace(rootPath) && CopyPaths.IsSameOrInside(path, rootPath))
+        {
+            return $"The {what} cannot be saved under the root folder.";
+        }
+
+        return CopyPaths.InsideMedia(path, mediaFolders) is { } folder ? $"The {what} cannot be saved in a media's folder ({folder})." : null;
     }
 
     /// <summary>
@@ -78,8 +89,10 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
         ArgumentNullException.ThrowIfNull(template);
         var root = session.Config.RootPath;
         var order = OrderedFiles(session, request.Filter, cancellationToken);
-        Check(Validate(session, request, order.Count) ?? ValidateOutput(request.ManifestPath, root, "manifest") ?? template.Validate(request.Naming.Mode)
-            ?? ValidateOutput(batchPath, root, "batch file"));
+        var locations = MediaLocations.Load(session);
+        var mediaFolders = locations.ExternalFolders();
+        Check(Validate(session, request, order.Count) ?? ValidateOutput(request.ManifestPath, root, "manifest", mediaFolders)
+            ?? template.Validate(request.Naming.Mode) ?? ValidateOutput(batchPath, root, "batch file", mediaFolders));
         var totalBytes = order.Sum(o => o.SizeBytes);
 
         var partial = batchPath + ".partial";
@@ -101,7 +114,8 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
                 string? lastFolder = null;
                 foreach (var file in Rows(session, order, cancellationToken))
                 {
-                    var (source, destination) = Paths(root, request, file, done + notInBatch);
+                    // Where the file is now (a drive found under another letter), else where it was recorded.
+                    var (source, destination, _) = Paths(locations, request, file, done + notInBatch);
                     if (destination is null)
                     {
                         // A batch cannot compute a SHA-1: the file is listed, not copied.
@@ -180,6 +194,7 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(options);
         var root = session.Config.RootPath;
+        var locations = MediaLocations.Load(session);
         var order = OrderedFiles(session, request.Filter, cancellationToken);
         Check(Validate(session, request, order.Count));
         var totalBytes = order.Sum(o => o.SizeBytes);
@@ -230,7 +245,7 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
                     var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // flat original names given out so far
                     foreach (var file in Rows(session, order, stop.Token))
                     {
-                        var (source, destination) = Paths(root, request, file, index);
+                        var (source, destination, notConnected) = Paths(locations, request, file, index);
                         if (request.Naming.Mode == CopyNamingMode.OriginalName)
                         {
                             // abc.txt, abc_2_.txt…: never over a file already there, nor over an earlier file of this copy.
@@ -241,10 +256,10 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
                         }
                         if (preserveFolders)
                         {
-                            NoteFolders(root, request.Destination, file.FolderPath, seenFolders, createdFolders);
+                            NoteFolders(locations, request.Destination, file.FolderPath, seenFolders, createdFolders);
                         }
 
-                        await work.Writer.WriteAsync(new CopyWork(index++, file, source, destination), stop.Token).ConfigureAwait(false);
+                        await work.Writer.WriteAsync(new CopyWork(index++, file, source, destination, notConnected), stop.Token).ConfigureAwait(false);
                     }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
@@ -280,7 +295,13 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
                         var destination = item.Destination;
                         try
                         {
-                            if (request.Naming.Mode == CopyNamingMode.Sha1Name)
+                            if (item.NotConnected)
+                            {
+                                // Its USB drive or folder is not there (or the letter now holds another device): never read the wrong one.
+                                result = new CopyFileResult(CopyOutcome.Failed, 0,
+                                    Message: $"The media {item.File.MediaId} is not connected: its drive or folder was not found.");
+                            }
+                            else if (request.Naming.Mode == CopyNamingMode.Sha1Name)
                             {
                                 (result, destination) = CopyNamedBySha1(item.Source, destination, request.Destination, item.File, options, Read, stop.Token);
                             }
@@ -455,9 +476,12 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
 
     /// <summary>Source and destination of the <paramref name="index"/>-th file (0-based, in copy order).</summary>
     /// <remarks>With SHA-1 names, the destination is null while the file has no SHA-1 in the inventory.</remarks>
-    private static (string Source, string? Destination) Paths(string root, CopyRequest request, CopySourceRow file, long index)
+    /// <remarks><c>NotConnected</c>: the file's media cannot be read now; <c>Source</c> is then where it was recorded.</remarks>
+    private static (string Source, string? Destination, bool NotConnected) Paths(MediaLocations locations, CopyRequest request, CopySourceRow file, long index)
     {
-        var source = CopyPaths.Combine(root, file.FolderPath + file.Name);
+        var relative = file.FolderPath + file.Name;
+        var current = locations.FullPath(relative);
+        var source = current ?? locations.ExpectedFullPath(relative);
         var destination = request.Naming.Mode switch
         {
             CopyNamingMode.Sequential =>
@@ -465,7 +489,7 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
             CopyNamingMode.Sha1Name => file.Sha1 is { Length: > 0 } sha1 ? Path.Combine(request.Destination, CopyNaming.Sha1FileName(sha1, file.Name)) : null,
             _ => CopyPaths.Combine(request.Destination, file.FolderPath + file.Name),
         };
-        return (source, destination);
+        return (source, destination, current is null);
     }
 
     /// <summary>Extension as written in the name (case kept), without the dot; "" when none.</summary>
@@ -476,7 +500,7 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
     }
 
     /// <summary>Remembers the destination folders (and their parents up to the media folder) that this copy creates.</summary>
-    private static void NoteFolders(string root, string destination, string folderPath, HashSet<string> seen, List<(string, string)> created)
+    private static void NoteFolders(MediaLocations locations, string destination, string folderPath, HashSet<string> seen, List<(string, string)> created)
     {
         var parts = folderPath.Split('\\', StringSplitOptions.RemoveEmptyEntries);
         var relative = new StringBuilder(@"\");
@@ -489,7 +513,7 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
                 var target = CopyPaths.Combine(destination, key);
                 if (!Directory.Exists(target))
                 {
-                    created.Add((CopyPaths.Combine(root, key), target));
+                    created.Add((locations.FullPath(key) ?? locations.ExpectedFullPath(key), target));
                 }
             }
         }
@@ -556,7 +580,7 @@ public sealed class CopyService(InventorySessionFactory factory, ILogger<CopySer
     ];
 
     /// <summary>A file handed from the producer to a copy worker; <see cref="Index"/> is its place in copy order (0-based).</summary>
-    private sealed record CopyWork(long Index, CopySourceRow File, string Source, string? Destination);
+    private sealed record CopyWork(long Index, CopySourceRow File, string Source, string? Destination, bool NotConnected);
 
     private void WriteBatchHeader(StreamWriter bat, InventorySession session, CopyRequest request, CopyCommandTemplate template, long files, long bytes)
     {

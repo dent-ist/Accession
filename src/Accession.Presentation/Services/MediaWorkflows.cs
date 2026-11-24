@@ -234,15 +234,16 @@ public sealed class MediaWorkflows
     public void OpenInExplorer(Media media)
     {
         ArgumentNullException.ThrowIfNull(media);
-        if (_host.Config is not { } config)
+        if (_host.Locations()?.Folder(media.MediaId) is not { } location)
         {
             return;
         }
 
-        var path = MediaFolders.FullPath(config.RootPath, media.MediaId);
-        if (!Directory.Exists(path))
+        if (location.Current is not { } path)
         {
-            _dialogs.ShowWarning("Open in Explorer", $"The folder '{path}' cannot be found.");
+            _dialogs.ShowWarning("Open in Explorer", location.IsExternal
+                ? $"{media.MediaId} is not connected: '{location.Expected}' (or its drive) cannot be found."
+                : $"The folder '{location.Expected}' cannot be found.");
             return;
         }
 

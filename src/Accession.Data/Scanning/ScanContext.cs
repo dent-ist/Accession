@@ -15,7 +15,8 @@ public sealed class ScanContext
     public required long MediaKey { get; init; }
     public required string MediaId { get; init; }
     public required long ScanId { get; init; }
-    public required string RootPath { get; init; }
+    /// <summary>The media's folder on disk now: <c>&lt;root&gt;\&lt;MediaID&gt;</c>, or its source folder on another drive.</summary>
+    public required string MediaFolder { get; init; }
     public required ScanDbWriter Writer { get; init; }
     public required ScanIdAllocator Ids { get; init; }
     public required ScanCounters Counters { get; init; }
@@ -23,7 +24,14 @@ public sealed class ScanContext
     public required NetworkRetry Retry { get; init; }
     public required TimeProvider TimeProvider { get; init; }
 
-    public string FullPath(string relativePath) => ScanPaths.ToFullPath(RootPath, relativePath);
+    /// <summary>Full path of a stored path (<c>\&lt;MediaID&gt;\…</c>) of this media.</summary>
+    public string FullPath(string relativePath) => MediaManagement.MediaLocations.Below(MediaFolder, relativePath);
+
+    /// <summary>
+    /// True when the media is a whole drive (<c>E:\</c>): its top level has <c>$RECYCLE.BIN</c> and <c>System Volume
+    /// Information</c>, which are skipped there as at the root (DSC-05).
+    /// </summary>
+    public bool IsDriveRoot => string.Equals(Path.GetPathRoot(MediaFolder), MediaFolder, StringComparison.OrdinalIgnoreCase);
 
     public ErrorCommand Error(string relativePath, ScanItemType itemType, ScanErrorType type, ScanErrorSeverity severity, int? code, string message) =>
         new(new ScanErrorEntry

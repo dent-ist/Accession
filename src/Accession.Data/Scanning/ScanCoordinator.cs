@@ -2,6 +2,7 @@ using System.Threading.Channels;
 using Accession.Core.Model;
 using Accession.Core.Runtime;
 using Accession.Core.Scanning;
+using Accession.Data.MediaManagement;
 using Accession.Data.Repositories;
 using Accession.Data.Sessions;
 using Dapper;
@@ -146,11 +147,9 @@ public sealed class ScanCoordinator : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(requests);
         _session.EnsureWritable();
-        if (!_session.IsRootAvailable)
-        {
-            throw new InvalidOperationException("The root folder is not available.");
-        }
 
+        // Before the transaction: finding a media's drive reads the disk (a sleeping USB drive takes a moment).
+        var locations = MediaLocations.Load(_session);
         var problems = new List<EnqueueProblem>();
         var accepted = new List<ScanQueueItem>();
         using (var scope = _session.Database.Open())
@@ -173,7 +172,7 @@ public sealed class ScanCoordinator : IAsyncDisposable
 
                 var reason = queued || accepted.Any(a => a.MediaKey == mediaKey)
                     ? $"'{media.MediaId}' is already in the scan queue."
-                    : CannotScanReason(media, type);
+                    : CannotScanReason(media, type) ?? NotConnectedReason(locations.Folder(media.MediaId));
                 if (reason is not null)
                 {
                     problems.Add(new EnqueueProblem(mediaKey, media.MediaId, reason));
@@ -207,6 +206,18 @@ public sealed class ScanCoordinator : IAsyncDisposable
         _signal.Release(accepted.Count);
         return problems;
     }
+
+    /// <summary>
+    /// Why a media cannot be queued now: its drive or folder is not connected, or the root is offline. A folder missing
+    /// under a reachable root is queued: the scan marks it Missing (DSC-03).
+    /// </summary>
+    private string? NotConnectedReason(MediaFolderLocation? location) => location switch
+    {
+        null or { IsConnected: true } => null,
+        { IsExternal: true } => $"'{location.MediaId}' is not connected: {location.Expected} (or its drive) cannot be found.",
+        _ when !_session.IsRootAvailable => "The root folder is not available.",
+        _ => null,
+    };
 
     /// <summary>Why a media cannot be scanned with <paramref name="type"/>, or null if it can.</summary>
     public static string? CannotScanReason(Media media, ScanType type)
@@ -444,8 +455,9 @@ public sealed class ScanCoordinator : IAsyncDisposable
     {
         var options = _options();
         CurrentOptions = options;
-        var root = _session.Config.RootPath;
-        var mediaFolder = Path.Combine(root, item.MediaId);
+        // Under the root, or the media's own folder (on its drive, wherever that is mounted now).
+        var location = MediaLocations.Load(_session).Folder(item.MediaId);
+        var mediaFolder = location?.Current ?? location?.Expected ?? MediaFolders.FullPath(_session.Config.RootPath, item.MediaId);
         var started = _timeProvider.GetUtcNow();
         long scanId;
         ScanIdAllocator ids;
@@ -455,14 +467,17 @@ public sealed class ScanCoordinator : IAsyncDisposable
         // ---- Start: validate, reset data for a full scan, ScanLog + audit ----
         using (var scope = _session.Database.Open())
         {
-            if (!Directory.Exists(mediaFolder))
+            if (location is { IsConnected: false } || !Directory.Exists(mediaFolder))
             {
                 using var tx = scope.BeginTransaction();
                 new MediaRepository(scope).MarkMissing(item.MediaKey);
-                _session.Audit.Write(scope, AuditAction.ScanFailed, item.MediaId, new { Reason = "Media folder not found", Path = mediaFolder });
+                var external = location?.IsExternal == true;
+                _session.Audit.Write(scope, AuditAction.ScanFailed, item.MediaId,
+                    new { Reason = external ? "Media not connected" : "Media folder not found", Path = mediaFolder });
                 tx.Commit();
                 RaiseStatus(item.MediaKey, MediaStatus.Missing);
-                ScanFinished?.Invoke(this, new ScanFinishedEventArgs(item, ScanOutcome.Failed, ScanTotals.Zero, "The media folder was not found."));
+                ScanFinished?.Invoke(this, new ScanFinishedEventArgs(item, ScanOutcome.Failed, ScanTotals.Zero,
+                    external ? "The media is not connected (its drive or folder was not found)." : "The media folder was not found."));
                 return;
             }
 
@@ -535,7 +550,7 @@ public sealed class ScanCoordinator : IAsyncDisposable
             MediaKey = item.MediaKey,
             MediaId = item.MediaId,
             ScanId = scanId,
-            RootPath = root,
+            MediaFolder = mediaFolder,
             Writer = writer,
             Ids = ids,
             Counters = counters,

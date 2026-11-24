@@ -38,6 +38,9 @@ public sealed partial class CopyViewModel : DialogViewModelBase
     public const string CustomTemplate = "custom";
 
     private readonly InventorySession _session;
+
+    /// <summary>Folders of media outside the root: nothing may be written there (like the root).</summary>
+    private readonly IReadOnlyList<string> _mediaFolders;
     private readonly CopyService _copy;
     private readonly IDialogService _dialogs;
     private readonly IUiDispatcher _ui;
@@ -61,6 +64,7 @@ public sealed partial class CopyViewModel : DialogViewModelBase
     {
         Mode = mode;
         _session = session;
+        _mediaFolders = CopyService.MediaFolders(session);
         _copy = copy;
         _dialogs = dialogs;
         _ui = ui;
@@ -280,7 +284,7 @@ public sealed partial class CopyViewModel : DialogViewModelBase
             return "There are no files to copy.";
         }
 
-        if (CopyPaths.ValidateDestination(Destination.Trim(), root) is { } destination)
+        if (CopyPaths.ValidateDestination(Destination.Trim(), root, _mediaFolders) is { } destination)
         {
             return destination;
         }
@@ -302,13 +306,13 @@ public sealed partial class CopyViewModel : DialogViewModelBase
                 return "The batch file name must end in .bat or .cmd.";
             }
 
-            if (CopyService.ValidateOutput(BatchPath.Trim(), root, "batch file") is { } batch)
+            if (CopyService.ValidateOutput(BatchPath.Trim(), root, "batch file", _mediaFolders) is { } batch)
             {
                 return batch;
             }
         }
 
-        return CopyService.ValidateOutput(ManifestPath.Trim(), root, "manifest") ?? string.Empty;
+        return CopyService.ValidateOutput(ManifestPath.Trim(), root, "manifest", _mediaFolders) ?? string.Empty;
     }
 
     private FileFilter Filter() => ScopeValue == ScopeTicked ? FileFilter.None with { FileIds = [.. _ticked] } : _allResults;

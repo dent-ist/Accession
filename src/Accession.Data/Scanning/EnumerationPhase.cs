@@ -99,9 +99,15 @@ public sealed class EnumerationPhase
         var skippedFileIds = new List<long>();
         var errors = new List<ErrorCommand>();
         long bytes = 0;
+        var driveTop = context.IsDriveRoot && string.Equals(folder.RelativePath, ScanPaths.MediaFolder(context.MediaId), StringComparison.OrdinalIgnoreCase);
 
         foreach (var entry in entries)
         {
+            if (driveTop && entry.IsDirectory && MediaManagement.MediaFolders.IgnoredAtRoot.Contains(entry.Name))
+            {
+                continue; // a whole drive as media: its recycle bin and system folder are not evidence (as at the root, DSC-05)
+            }
+
             if (entry.IsDirectory)
             {
                 var id = context.Ids.NextFolderId();

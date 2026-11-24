@@ -1,3 +1,4 @@
+using Accession.Data.MediaManagement;
 using Accession.Core.Model;
 using Accession.Data.Sessions;
 using Accession.Presentation.Platform;
@@ -25,6 +26,9 @@ public sealed class InventoryHost : ObservableObject
     public bool CanModify => Session is { IsReadOnly: false };
 
     public bool IsRootAvailable => Session?.IsRootAvailable ?? false;
+
+    /// <summary>Where the media's files are now (read for each action: media are added and drives plugged in).</summary>
+    public MediaLocations? Locations() => Session is { } session ? MediaLocations.Load(session) : null;
 
     public InventoryConfig? Config => Session?.Config;
 

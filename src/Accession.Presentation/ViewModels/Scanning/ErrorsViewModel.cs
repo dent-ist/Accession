@@ -164,9 +164,9 @@ public sealed partial class ErrorsViewModel : ViewModelBase, IErrorsModel, IDisp
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void CopyPath()
     {
-        if (SelectedRow is { } row && _host.Config is { } config)
+        if (SelectedRow is { } row && _host.Locations() is { } locations)
         {
-            _desktop.SetClipboardText(ScanPaths.ToFullPath(config.RootPath, row.RelativePath));
+            _desktop.SetClipboardText(locations.DisplayPath(row.RelativePath));
             _toasts.Show("Path copied", ToastKind.Success);
         }
     }
@@ -175,12 +175,17 @@ public sealed partial class ErrorsViewModel : ViewModelBase, IErrorsModel, IDisp
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void OpenContainingFolder()
     {
-        if (SelectedRow is not { } row || _host.Config is not { } config)
+        if (SelectedRow is not { } row || _host.Locations() is not { } locations)
         {
             return;
         }
 
-        var path = ScanPaths.ToFullPath(config.RootPath, row.RelativePath);
+        if (locations.FullPath(row.RelativePath) is not { } path)
+        {
+            _toasts.Show($"{row.MediaId} is not connected: {locations.ExpectedFullPath(row.RelativePath)}", ToastKind.Warning);
+            return;
+        }
+
         if (File.Exists(path))
         {
             _desktop.SelectInExplorer(path);
